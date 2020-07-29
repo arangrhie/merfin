@@ -27,6 +27,11 @@
 #include <vector>
 #include <map>
 
+#define OP_NONE       0
+#define OP_HIST       1
+#define OP_DUMP       2
+#define OP_VAR_MER    3
+
 char*
 concat(const char *s1, const char *s2) {
   char *result = (char*) malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
@@ -95,6 +100,81 @@ traverse(int     idx,
   return candidate;
 }
 
+double
+getKmetric(merylExactLookup   *rlookup,
+           merylExactLookup   *alookup,
+           kmer                fmer,
+           kmer                rmer,
+           double             &readK,
+           double             &asmK,
+           uint64              peak   ) {
+
+  uint64 fValue = 0;
+  uint64 rValue = 0;
+  double kMetric;
+
+  rlookup->exists(fmer, fValue);
+  rlookup->exists(rmer, rValue);
+
+  readK = (double) (fValue + rValue) / peak;
+
+  fValue = 0;
+  rValue = 0;
+  alookup->exists(fmer, fValue);
+  alookup->exists(rmer, rValue);
+
+  asmK  = (double) (fValue + rValue);
+
+  if ( readK == 0 ) {
+    kMetric = 0;
+  } else if ( asmK > readK ) {
+    kMetric = asmK / readK - 1;
+    kMetric = kMetric * -1;
+  } else { // readK > asmK
+    kMetric = readK / asmK - 1;
+  }
+  return kMetric;
+}
+
+void
+dumpKmetric(char               *outName,
+            dnaSeqFile         *sfile,
+            merylExactLookup   *rlookup,
+            merylExactLookup   *alookup,
+            uint64              peak) {
+
+  compressedFileWriter *k_dump   = new compressedFileWriter(outName);
+
+  dnaSeq seq;
+  double asmK;
+  double readK;
+  double kMetric;
+  uint64 missing = 0;
+
+  for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
+    kmerIterator kiter(seq.bases(), seq.length());
+
+    while (kiter.nextBase()) {
+      if (kiter.isValid() == true) {
+        kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK, peak);
+
+        if ( readK == 0 )
+          missing++;
+
+        fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+                 seq.name(),
+                 kiter.position(),
+                 readK,
+                 asmK,
+                 kMetric
+                 );
+      }
+    }
+  }
+  fprintf(stderr, "\nK-mers not found in reads: %lu\n", missing);
+
+}
+
 void
 histKmetric(char               *outName,
             dnaSeqFile         *sfile,
@@ -103,16 +183,12 @@ histKmetric(char               *outName,
             uint64              peak) {
 
   dnaSeq seq;
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  double readK;
   double asmK;
+  double readK;
   double kMetric;
 
-
-
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
-  compressedFileWriter *k_hist   = new compressedFileWriter(concat(outName, ".hist"));
+  compressedFileWriter *k_hist   = new compressedFileWriter(outName);
 
 
   //  variables for generating histogram
@@ -132,41 +208,15 @@ histKmetric(char               *outName,
 
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
-        fValue = 0;
-        rValue = 0;
-        rlookup->exists(kiter.fmer(), fValue);
-        rlookup->exists(kiter.rmer(), rValue);
-
-        readK = (double) (fValue + rValue) / peak;
-
-        fValue = 0;
-        rValue = 0;
-        alookup->exists(kiter.fmer(), fValue);
-        alookup->exists(kiter.rmer(), rValue);
-
-        asmK  = (double) (fValue + rValue);
+        kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK, peak);
 
         if ( readK == 0 ) {
-          kMetric = 0;
           missing++;
-        } else if ( asmK > readK ) {
-          kMetric = asmK / readK - 1;
-          undrHist[(uint64) ((kMetric + 0.1) / 0.2)]++;
-          kMetric = kMetric * -1;
+        } else if ( readK < asmK ) {
+          undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
         } else { // readK > asmK
-          kMetric = readK / asmK - 1;
           overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
         }
-
-/*** Need to put this out as a separate function
-        fprintf(k_values->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-                 seq.name(),
-                 kiter.position(),
-                 readK,
-                 asmK,
-                 kMetric
-                 );
-***/
       }
     }
   }
@@ -178,20 +228,21 @@ histKmetric(char               *outName,
   for (uint64 ii = 1; ii < histMax; ii++) {
      if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
   }
+  fprintf(stderr, "\nK-mers not found in reads: %lu\n", missing);
 }
 
 
 void
-generateVarMers(dnaSeqFile       *sfile,
-                vcfFile          *vfile,
-                merylExactLookup *rlookup,
-                merylExactLookup *alookup,
-                uint64            peak,
-                char             *out) {
+varMers(dnaSeqFile       *sfile,
+        vcfFile          *vfile,
+        merylExactLookup *rlookup,
+        merylExactLookup *alookup,
+        uint64            peak,
+        char             *out) {
 
   //  output file
-  compressedFileWriter *oFasta  = new compressedFileWriter(concat(out, ".fasta"));
-  compressedFileWriter *oKAfter = new compressedFileWriter(concat(out, ".k_after"));
+  compressedFileWriter *oPri    = new compressedFileWriter(concat(out, ".pri.vcf"));
+  compressedFileWriter *oAlt    = new compressedFileWriter(concat(out, ".alt.vcf"));
   compressedFileWriter *oDebug  = new compressedFileWriter(concat(out, ".debug"));
 
   //  What is the kmer size?
@@ -321,7 +372,7 @@ generateVarMers(dnaSeqFile       *sfile,
         }
       }
 
-      fprintf(oDebug->file(), "Sorted by k*\n");
+      fprintf(oDebug->file(), "Sorted by min k*\n");
       multimap<double, int> minKs = seqMer->getMinKs();
       for ( pair<double, int> p : minKs ) {
         if ( p.first > 0.0 ) {
@@ -342,8 +393,31 @@ generateVarMers(dnaSeqFile       *sfile,
         }
       }
 
+      fprintf(oDebug->file(), "Sorted by max k*\n");
+      multimap<double, int> maxKs = seqMer->getMaxKs();
+      for ( pair<double, int> p : maxKs ) {
+        if ( p.first > 0.0 ) {
+          int idx = p.second;
+
+          fprintf(oDebug->file(), "%s\t%u\t%u\t%s\t%.1f\tpath =",
+          seq.name(),
+          rStart,
+          rEnd,
+          seqMer->seqs.at(idx).c_str(),
+          p.first);
+
+          for ( int i = 0; i < seqMer->paths.at(idx).size(); i++) {
+            fprintf(oDebug->file(), "\t%u ( %d )", gts->at(i)->_pos, seqMer->paths.at(idx).at(i));
+          }
+
+          fprintf(oDebug->file(), "\n");
+        }
+      }
+
       fprintf(oDebug->file(), "\n");
-      //  polish seq
+
+      // generate vcfs
+
     }
   }
 }
@@ -363,6 +437,7 @@ main(int argc, char **argv) {
 
   uint32          threads    = omp_get_max_threads();
   uint32          memory     = 0;
+  uint32          reportType = OP_NONE;
 
   vector<char *>  err;
   int             arg = 1;
@@ -397,6 +472,15 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-memory") == 0) {
       memory = strtouint32(argv[++arg]);
 
+    } else if (strcmp(argv[arg], "-hist") == 0) {
+      reportType = OP_HIST;
+
+    } else if (strcmp(argv[arg], "-dump") == 0) {
+      reportType = OP_DUMP;
+
+    } else if (strcmp(argv[arg], "-vmer") == 0) {
+      reportType = OP_VAR_MER;
+
     } else {
       char *s = new char [1024];
       snprintf(s, 1024, "Unknown option '%s'.\n", argv[arg]);
@@ -412,30 +496,23 @@ main(int argc, char **argv) {
     err.push_back("No sequence meryl database (-seqmers) supplied.\n");
   if (readDBname == NULL)
     err.push_back("No read meryl database (-readmers) supplied.\n");
-  if (vcfName == NULL)
-    err.push_back("No variant call (-vcf) supplied.\n");
   if (peak == 0)
     err.push_back("Peak=0 or no haploid peak (-peak) supplied.\n");
+  if (outName == NULL)
+    err.push_back("No output (-output) supplied.\n");
 
   if (err.size() > 0) {
-    fprintf(stderr, "usage: %s \\\n", argv[0]);
-    fprintf(stderr, "         -sequence <input.fasta>   \\\n");
-    fprintf(stderr, "         -seqmers  <input.meryl>   \\\n");
+    fprintf(stderr, "usage: %s <report-type> \\\n", argv[0]);
+    fprintf(stderr, "         -sequence <seq.fasta>   \\\n");
+    fprintf(stderr, "         -seqmers  <seq.meryl>   \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
-    fprintf(stderr, "  Predict the kmer from <input.vcf> given sequence <input.fasta>\n");
-    fprintf(stderr, "  and lookup the k-mer multiplicity from <input.meryl>.\n");
+    fprintf(stderr, "  Predict the kmer from <input.vcf> given sequence <seq.fasta>\n");
+    fprintf(stderr, "  and lookup the k-mer multiplicity from sequence and reads.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "  Input files can be FASTA or FASTQ; uncompressed, gz, bz2 or xz compressed\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "  Output:\n");
-    fprintf(stderr, "    <output>.fasta    - polished sequence\n");
-    fprintf(stderr, "    <output>.alt.vcf  - alternative variants (not chosen due to lower multiplicity support\n");
-    fprintf(stderr, "    <output>.k_before - k* hist before, 0-centered\n");
-    fprintf(stderr, "    <output>.k_after  - k* hist after,  0-centered\n");
-    fprintf(stderr, "    <output>.debug    - kmers generated from each variant, multiplicity, K* before and after (est)\n");
+    fprintf(stderr, "  Input -sequence and -vcf files can be FASTA or FASTQ; uncompressed, gz, bz2 or xz compressed\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Each input database can be filtered by value.  More advanced filtering\n");
     fprintf(stderr, "  requires a new database to be constructed using meryl.\n");
@@ -447,6 +524,44 @@ main(int argc, char **argv) {
     fprintf(stderr, "  speed.  If the lookup table requires more memory than allowed, the program\n");
     fprintf(stderr, "  exits with an error.\n");
     fprintf(stderr, "    -memory m   Don't use more than m GB memory\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  Exactly one report type must be specified.\n");
+    fprintf(stderr, "\n\n");
+    fprintf(stderr, "  -hist\n");
+    fprintf(stderr, "   Generate a 0-centered k* histogram for sequences in <input.fasta>.\n");
+    fprintf(stderr, "   Positive k* values are expected collapsed copies.\n");
+    fprintf(stderr, "   Negative k* values are expected expanded  copies.\n");
+    fprintf(stderr, "   Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
+    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Output: k* <tab> frequency\n");
+    fprintf(stderr, "\n\n");
+    fprintf(stderr, "  -dump\n");
+    fprintf(stderr, "   Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.\n");
+    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*\n");
+    fprintf(stderr, "      seqName    - name of the sequence this kmer is from\n");
+    fprintf(stderr, "      seqPos     - start position (0-based) of the kmer in the sequence\n");
+    fprintf(stderr, "      readK      - normalized read copies (read multiplicity / peak)\n");
+    fprintf(stderr, "      asmK       - assembly copies as found in <seq.meryl>\n");
+    fprintf(stderr, "      k*         - 0-centered k* value\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  -vmer\n");
+    fprintf(stderr, "   Score each variant, or variants within distance k and its combination by k*.\n");
+    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Output:\n");
+    fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
+    fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
+    fprintf(stderr, "      seqName         - name of the sequence this kmer is from\n");
+    fprintf(stderr, "      varMerStart     - start position (0-based) of the variant (s), including sequences upstream of k-1 bp\n");
+    fprintf(stderr, "      varMerEnd       - end position (1-based) of the variant (s), including sequences downstream of k-1 bp\n");
+    fprintf(stderr, "      varMerSeq       - combination of variant sequence to evalute\n");
+    fprintf(stderr, "      score           - score, min k*? median k*? to be decided...\n");
+    fprintf(stderr, "      path            - position of the variant (type of variant used: 0 = hap1, 1 = hap2, 2 = ref)\n");
+    fprintf(stderr, "    <output>.pri.vcf  - variants chosen. use bcftools to polish <seq.fata>\n");
+    fprintf(stderr, "    <output>.alt.vcf  - variants not chosen but have high support\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
@@ -484,39 +599,37 @@ main(int argc, char **argv) {
 
   delete merylDB;   //  Not needed anymore.
 
-
-
   //  Open input sequences.
-
   dnaSeqFile  *seqFile = NULL;
-  if (seqName != NULL) {
-    fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
-    seqFile = new dnaSeqFile(seqName);
-  }
-
-  //  Open vcf file
-  fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
-  vcfFile* inVcf = new vcfFile(vcfName);
-
-  //  Dump before kmetric
-
-/*** Comment when testing takes too long ***
-  fprintf(stderr, "-- Dump k* metrics to '%s.k_before.gz' and '%s.k_before.hist'.\n", outName, outName);
-  histKmetric(concat(outName, ".k_before"), seqFile, readLookup, asmLookup, peak);
-  fprintf(stderr, "\n");
-*******************************************/
-
-  //  seqFile->reopen();
-  delete seqFile;
+  fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
   seqFile = new dnaSeqFile(seqName);
 
-  fprintf(stderr, "-- Generate variant mers and score them.\n");
-  generateVarMers(seqFile, inVcf, readLookup, asmLookup, peak, outName);
 
-  //  Dump after kmetric
+  //  Check report type
+  if (reportType == OP_HIST) {
+    fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", outName);
+    histKmetric(outName, seqFile, readLookup, asmLookup, peak);
+  }
+  if (reportType == OP_DUMP) {
+    fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
+    dumpKmetric(outName, seqFile, readLookup, asmLookup, peak);
+  }
+  if (reportType == OP_VAR_MER) {
+    //  Open vcf file
+    if (vcfName == NULL) {
+      fprintf(stderr, "No variant call (-vcf) supplied.\n");
+      exit (-1);
+    }
+    fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
+    vcfFile* inVcf = new vcfFile(vcfName);
+
+    fprintf(stderr, "-- Generate variant mers and score them.\n");
+    varMers(seqFile, inVcf, readLookup, asmLookup, peak, outName);
+
+    delete inVcf;
+  }
   
   delete seqFile;
-  delete inVcf;
   delete readLookup;
   delete asmLookup;
 
