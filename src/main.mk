@@ -1,3 +1,4 @@
+MODULE       :=    merfin
 TARGET       := libmerfin.a
 SOURCES      := utility/src/utility/edlib.C \
                 \
@@ -55,9 +56,9 @@ endif
 SRC_INCDIRS  := . \
                 utility/src/utility
 
-SUBMAKEFILES := merfin/merfin.mk
+SUBMAKEFILES := merfin/merfin.mk \
+                meryl/src/meryl/meryl.mk
 
-#                meryl/src/meryl/meryl.mk \
 #                meryl/src/meryl-simple/meryl-simple.mk \
 #                meryl/src/meryl-import/meryl-import.mk \
 #                meryl/src/meryl-lookup/meryl-lookup.mk \
