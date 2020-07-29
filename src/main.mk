@@ -1,29 +1,4 @@
-
-#  If 'make' isn't run from the root directory, we need to set these to
-#  point to the upper level build directory.
-
-ifeq "$(strip ${DESTDIR})" ""
-  DESTDIR      :=
-endif
-
-ifeq "$(strip ${PREFIX})" ""
-  ifeq "$(strip ${DESTDIR})" ""
-    PREFIX     := $(realpath ..)
-  else
-    PREFIX     := /merfin
-  endif
-endif
-
-ifeq "$(strip ${BUILD_DIR})" ""
-  BUILD_DIR    := $(DESTDIR)$(PREFIX)/$(OSTYPE)-$(MACHINETYPE)/obj
-endif
-
-ifeq "$(strip ${TARGET_DIR})" ""
-  TARGET_DIR   := $(DESTDIR)$(PREFIX)/$(OSTYPE)-$(MACHINETYPE)
-endif
-
 TARGET       := libmerfin.a
-
 SOURCES      := utility/src/utility/edlib.C \
                 \
                 utility/src/utility/files.C \
@@ -61,7 +36,6 @@ SOURCES      := utility/src/utility/edlib.C \
                 \
                 utility/src/utility/runtime.C
 
-
 ifeq (${BUILDSTACKTRACE}, 1)
 SOURCES      += utility/src/utility/libbacktrace/atomic.c \
                 utility/src/utility/libbacktrace/backtrace.c \
@@ -81,12 +55,13 @@ endif
 SRC_INCDIRS  := . \
                 utility/src/utility
 
-SUBMAKEFILES := merfin/merfin.mk \
-                meryl/src/meryl/meryl.mk \
-                meryl/src/meryl-simple/meryl-simple.mk \
-                meryl/src/meryl-import/meryl-import.mk \
-                meryl/src/meryl-lookup/meryl-lookup.mk \
-                meryl/src/meryl-check/meryl-check.mk
+SUBMAKEFILES := merfin/merfin.mk
+
+#                meryl/src/meryl/meryl.mk \
+#                meryl/src/meryl-simple/meryl-simple.mk \
+#                meryl/src/meryl-import/meryl-import.mk \
+#                meryl/src/meryl-lookup/meryl-lookup.mk \
+#                meryl/src/meryl-check/meryl-check.mk
 
 ifeq ($(BUILDTESTS), 1)
 SUBMAKEFILES += tests/merylCountArrayTest.mk
