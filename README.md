@@ -88,3 +88,29 @@ usage: ./merfin <report-type> \
     <output>.pri.vcf  - variants chosen. use bcftools to polish <seq.fata> (Not implemented yet)
     <output>.alt.vcf  - variants not chosen but have high support (Not implemented yet)
 ```
+
+Example run:
+```
+// Get histogram and QV specific to chrX - QV is correct. Histogram will be biased for collapses
+merfin -hist -memory 16 -sequence chrX.fasta -seqmers chrX.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
+
+// Get histogram and QV specific to chrX - Histogram is correct. QV will be biased
+merfin -hist -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
+
+// Get histogram and QV for the full assembly - Histogram and QV correct
+merfin -hist -memory 120 -sequence asm.fasta -seqmers asm.meryl -readmers read.meryl/ -peak 104 -output out.chrX.hist
+
+// Dump readK, asmK, k* for each position of chrX
+merfin -dump -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.dump.gz
+
+// Score each variant call and sort
+merfin -vmer -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -vcf chrX.tiny.vcf -output out.dump.gz
+```
+
+## Acknowledgements
+This code was developed as part of the T2T consortium chm13-polishing working group by the following individuals:
+* Giulio Formenti
+* Arang Rhie
+* Brian Walenz
+* Sergey Koren
+* Adam Phillippy
