@@ -26,6 +26,7 @@
 
 #include <vector>
 #include <map>
+#include <cmath>
 
 #define OP_NONE       0
 #define OP_HIST       1
@@ -196,7 +197,9 @@ histKmetric(char               *outName,
   uint64 * overHist = new uint64[histMax];	// positive k* values, overHist[0] = bin 0.0 ~ 0.2
   uint64 * undrHist = new uint64[histMax];	// negative k* values
   uint64   missing  = 0;			// missing kmers (0)
-  uint64   histBin  = 0;
+  double   roundedReadK = 0;
+  double   overcpy  = 0;
+  uint64   asmT     = 0;
 
   for (uint64 ii = 0; ii < histMax; ii++) {
     overHist[ii] = 0;
@@ -207,6 +210,7 @@ histKmetric(char               *outName,
     kmerIterator kiter(seq.bases(), seq.length());
 
     while (kiter.nextBase()) {
+      asmT++;
       if (kiter.isValid() == true) {
         kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK, peak);
 
@@ -214,6 +218,14 @@ histKmetric(char               *outName,
           missing++;
         } else if ( readK < asmK ) {
           undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+          //  TODO: Check if this kmer was already coutned. Only if not,
+          //  overcpy += (asmK - readK)
+          if (readK < 1) {
+            roundedReadK = 1;
+          } else {
+            roundedReadK = round(readK);
+          }
+          overcpy += (double) 1 - roundedReadK / asmK;  //  (asmK - readK) / asmK
         } else { // readK > asmK
           overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
         }
@@ -228,7 +240,18 @@ histKmetric(char               *outName,
   for (uint64 ii = 1; ii < histMax; ii++) {
      if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
   }
-  fprintf(stderr, "\nK-mers not found in reads: %lu\n", missing);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", missing);
+  fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", overcpy);
+  fprintf(stderr, "K-mers found in assembly: %lu\n", asmT);
+  double err = 1 - pow((1-((double) missing) / asmT), (double) 1/21);
+  double qv = -10*log10(err);
+  fprintf(stderr, "Merqury  QV: %.2f\n", qv);
+  missing += (uint64) ceil(overcpy);
+  err = 1 - pow((1-((double) missing) / asmT), (double) 1/21);
+  qv = -10*log10(err);
+  fprintf(stderr, "Adjusted QV: %.2f\n", qv);
+  fprintf(stderr, "*** Note this QV is only valid if -seqmer was generated with -sequence ***\n\n");
 }
 
 
@@ -535,6 +558,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Positive k* values are expected collapsed copies.\n");
     fprintf(stderr, "   Negative k* values are expected expanded  copies.\n");
     fprintf(stderr, "   Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
+    fprintf(stderr, "   Reports QV at the end, in stderr.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: k* <tab> frequency\n");
