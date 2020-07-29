@@ -337,8 +337,8 @@ varMers(dnaSeqFile       *sfile,
            haps.push_back(gt->_ref);
          }
          mapPosHap.insert(pair<int, vector<char*> >(i, haps));
-         fprintf(stderr, "%s %u %u %u %s %s\n",
-                 seq.name(), rStart, rEnd, gt->_pos, gt->_hap1, gt->_hap2);
+         //fprintf(stderr, "%s %u %u %u %s %s\n",
+         //        seq.name(), rStart, rEnd, gt->_pos, gt->_hap1, gt->_hap2);
          haps.clear();
       }
 
@@ -351,6 +351,8 @@ varMers(dnaSeqFile       *sfile,
       seqMer->score(rlookup, alookup, peak);
 
       //  print output sorted haps
+
+/***
       fprintf(oDebug->file(), "Sorted by minFreq\n");
       multimap<uint64, int> minFreqs = seqMer->getMinFreqs();
       for ( pair<uint64, int> p : minFreqs ) {
@@ -371,6 +373,7 @@ varMers(dnaSeqFile       *sfile,
           fprintf(oDebug->file(), "\n");
         }
       }
+**/
 
       fprintf(oDebug->file(), "Sorted by min k*\n");
       multimap<double, int> minKs = seqMer->getMinKs();
