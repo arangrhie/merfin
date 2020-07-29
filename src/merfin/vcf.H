@@ -261,26 +261,30 @@ public:
     uint64 freq;
     uint64 minF;
     double minK;
+    double maxK;
     string seq;
     bool   fExists = false;
     bool   rExists = false;
     double readK;
     double asmK;
     double kMetric;
+    vector<double> m_ks;
+    bool  evaluate = true;
 
     //  get scores at each kmer pos and minimum read multiplicity
     for ( int jj = 0; jj < seqs.size(); jj++ ) {
+      minF  = UINT64_MAX;
+      minK  = DBL_MAX;
+      maxK  = -2;
+      evaluate = true;
 
       seq    = seqs.at(jj);
-      vector<uint64> m_freqs;
-      vector<double> m_ks;
-      //  fprintf(stderr, "%s\t%u\t%u\t%s\t", posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
+      m_ks.clear();
+      fprintf(stderr, "%s\t%u\t%u\t%s\t", posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
 
       kmerIterator kiter((char*) seq.c_str(), seq.size());
       while (kiter.nextMer()) {
         freq = 0;
-        minF  = UINT64_MAX;
-        minK  = DBL_MAX;
         fValue = 0;
         rValue = 0;
 
@@ -290,7 +294,6 @@ public:
             freq = fValue + rValue;
         }
 
-        m_freqs.push_back(freq);
         if (minF > freq) { minF = freq; };
         //  fprintf(stderr, "%lu ", freq);
 
@@ -305,33 +308,47 @@ public:
 
         if (freq == 0) {
           kMetric = -1;            // set to negative so we can filter out < 0 values
+          // no need to evaluate or give scores
+          evaluate = false;
+          continue;
         } else if (readK > asmK) {
           kMetric = readK / asmK;  // we don't need to shift this to 0 here
         } else {
           kMetric = asmK  / readK;
         }
 
+        m_ks.push_back(kMetric);
+        fprintf(stderr, "%.2f ", kMetric);
+
         if (minK > kMetric) { minK = kMetric; };
+        if (maxK < kMetric) { maxK = kMetric; };
 
       }
-      freqs.push_back(m_freqs);
-      minFs.insert(pair<uint64, int>(minF, jj));	// Automatically sorted by min value
-      minKs.insert(pair<double, int>(minK, jj));	// Automatically sorted by min value
 
-      //  fprintf(stderr, "\n");
+      //  only evaluate when no missing kmers are generated
+      if (evaluate) {
+        kstrs.push_back(m_ks);
+        minFs.insert(pair<uint64, int>(minF, jj));	// Automatically sorted by min value
+        minKs.insert(pair<double, int>(minK, jj));	// Automatically sorted by min value
+        maxKs.insert(pair<double, int>(maxK, jj));	// Automatically sorted by min value
+      }
+
+      fprintf(stderr, "\n");
     }
     return;
   };
 
   multimap<uint64, int> getMinFreqs() { return minFs; };
   multimap<double, int> getMinKs()    { return minKs; };
+  multimap<double, int> getMaxKs()    { return maxKs; };
 
 public:
-  vector< vector<int> >     paths; //  contains idx
+  vector< vector<int> >     paths;  //  contains idx
   vector< string >          seqs;
-  vector< vector<uint64> >  freqs; //  lookup frequency, freqs.at(0) is the first kmer freq of the seq
+  vector< vector<double> >  kstrs;  //  k* values, kstrs.at(0) is the k* value of the first seq
   multimap<uint64, int >    minFs;  //  min freq, sorted from lowest to greatest, with idx on the second
   multimap<double, int >    minKs;  //  min k*,   sorted from lowest to greatest, with idx on the second
+  multimap<double, int >    maxKs;  //  max k*,   sorted from lowest to greatest, with idx on the second
   posGT*               posGt;
   vector< uint32 >     order;
 };
