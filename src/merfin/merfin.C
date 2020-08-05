@@ -137,6 +137,7 @@ getKmetric(merylExactLookup   *rlookup,
   return kMetric;
 }
 
+
 void
 dumpKmetric(char               *outName,
             dnaSeqFile         *sfile,
@@ -462,7 +463,8 @@ main(int argc, char **argv) {
   uint64          peak       = 0;
 
   uint32          threads    = omp_get_max_threads();
-  uint32          memory     = 0;
+  uint32          memory1    = 0;
+  uint32          memory2    = 0;
   uint32          reportType = OP_NONE;
 
   vector<char *>  err;
@@ -495,8 +497,11 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-threads") == 0) {
       threads = strtouint32(argv[++arg]);
 
-    } else if (strcmp(argv[arg], "-memory") == 0) {
-      memory = strtouint32(argv[++arg]);
+    } else if (strcmp(argv[arg], "-memory1") == 0) {
+      memory1 = strtouint32(argv[++arg]);
+
+    } else if (strcmp(argv[arg], "-memory2") == 0) {
+      memory2 = strtouint32(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
@@ -549,7 +554,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "  Memory usage can be limited, within reason, by sacrificing kmer lookup\n");
     fprintf(stderr, "  speed.  If the lookup table requires more memory than allowed, the program\n");
     fprintf(stderr, "  exits with an error.\n");
-    fprintf(stderr, "    -memory m   Don't use more than m GB memory\n");
+    fprintf(stderr, "    -memory1 m   Don't use more than m GB memory for loading seqmers\n");
+    fprintf(stderr, "    -memory2 m   Don't use more than m GB memory for loading readmers\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Exactly one report type must be specified.\n");
     fprintf(stderr, "\n\n");
@@ -606,7 +612,7 @@ main(int argc, char **argv) {
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
 
   merylFileReader*  merylDB    = new merylFileReader(readDBname);
-  merylExactLookup* readLookup = new merylExactLookup(merylDB, memory, minV, maxV);
+  merylExactLookup* readLookup = new merylExactLookup(merylDB, memory2, minV, maxV);
 
   if (readLookup->configure() == false)
     exit(1);
@@ -617,7 +623,7 @@ main(int argc, char **argv) {
   
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
   merylDB = new merylFileReader(seqDBname);
-  merylExactLookup* asmLookup = new merylExactLookup(merylDB, memory, 0, UINT64_MAX);
+  merylExactLookup* asmLookup = new merylExactLookup(merylDB, memory1, 0, UINT64_MAX);
 
   if (asmLookup->configure() == false)
     exit(1);
