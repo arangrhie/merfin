@@ -43,7 +43,6 @@ concat(const char *s1, const char *s2) {
 }
 
 
-
 string
 replace(string a, int i, int len, char* rep) {
   a.replace(i, len, rep);
@@ -51,15 +50,14 @@ replace(string a, int i, int len, char* rep) {
 }
 
 
-
 string
-traverse(int     idx,
-  vector<uint32>    refIdxList,
-  vector<uint32>    refLenList,
-  map<int, vector<char*> >  posHaps,
-  string         candidate,
-  vector<int>    path,
-  varMer*        seqMer) {
+traverse(int             idx,
+         vector<uint32>  refIdxList,
+         vector<uint32>  refLenList,
+         map<int, vector<char*> >  posHaps,
+         string          candidate,
+         vector<int>     path,
+         varMer*         seqMer) {
 
   if (idx < refIdxList.size()) {
 
@@ -89,7 +87,7 @@ traverse(int     idx,
 
       //  Only do something when all nodes are visited
       if (idx == refIdxList.size() - 1) {
-        seqMer->addSeqPath(replaced, path);
+        seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
       }
 
       path.pop_back();
@@ -305,6 +303,8 @@ varMers(dnaSeqFile       *sfile,
   map<int, vector<char*> > mapPosHap;
   vector<char*>   haps;
   vector<int>     path;
+
+  uint64   varMerId = 0;;
  
   // temporal sequence to hold ref bases
   char      refTemplate[1024] = "";
@@ -338,7 +338,7 @@ varMers(dnaSeqFile       *sfile,
       refIdxList.clear();
       refLenList.clear();
       path.clear();
-      haps.clear();
+      // haps.clear();
       mapPosHap.clear();
 
       //  load original sequence from rStart to rEnd
@@ -353,17 +353,16 @@ varMers(dnaSeqFile       *sfile,
          gt = gts->at(i);
          refIdxList.push_back(gt->_pos - rStart);
          refLenList.push_back(gt->_refLen);
-         haps.push_back(gt->_hap1);
-         haps.push_back(gt->_hap2);
 
-         //  include ref allele in case it was not in the hap1 hap2
-         if (!gt->_hasRef) {
-           haps.push_back(gt->_ref);
-         }
-         mapPosHap.insert(pair<int, vector<char*> >(i, haps));
+         //  add alleles. alleles.at(0) is always the ref allele
+         //  haps = gt->alleles;
+         
+         mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
          //fprintf(stderr, "%s %u %u %u %s %s\n",
          //        seq.name(), rStart, rEnd, gt->_pos, gt->_hap1, gt->_hap2);
-         haps.clear();
+
+         // clear haps if it was copied; since we are referencing the pointer leave it as it is
+         // haps.clear();
       }
 
       varMer* seqMer = new varMer(posGt);
@@ -374,77 +373,39 @@ varMers(dnaSeqFile       *sfile,
       //  score each combination
       seqMer->score(rlookup, alookup, peak);
 
-      //  print output sorted haps
-
-/***
-      fprintf(oDebug->file(), "Sorted by minFreq\n");
-      multimap<uint64, int> minFreqs = seqMer->getMinFreqs();
-      for ( pair<uint64, int> p : minFreqs ) {
-        if ( p.first > 0 ) {
-          int idx = p.second;
-
-          fprintf(oDebug->file(), "%s\t%u\t%u\t%s\t%lu\tpath =",
+      //  print haps
+      for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.2f\t%.2f\t%.2f\t%.2f\t",
+          varMerId++,
           seq.name(),
           rStart,
           rEnd,
-          seqMer->seqs.at(idx).c_str(),
-          p.first);
+          seqMer->seqs.at(idx).c_str(), //  seq
+          seqMer->numMs.at(idx),	//  missing
+          seqMer->getMinAbsK(idx),
+          seqMer->getMaxAbsK(idx),
+          seqMer->getAvgK(idx),
+          seqMer->getMedK(idx)
+        );
 
-          for ( int i = 0; i < seqMer->paths.at(idx).size(); i++) {
-            fprintf(oDebug->file(), "\t%u ( %d )", gts->at(i)->_pos, seqMer->paths.at(idx).at(i));
+        for ( int i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+          // Ignore the ref-allele (0/0) GTs
+          // print only the non-ref allele variants for fixing
+          int altIdx = seqMer->gtPaths.at(idx).at(i);
+          if (altIdx > 0) {
+            fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+              seq.name(),
+              (gts->at(i)->_pos+1),
+              gts->at(i)->alleles->at(0),
+              gts->at(i)->alleles->at(altIdx)
+            );
           }
-
-          fprintf(oDebug->file(), "\n");
         }
+        fprintf(oDebug->file(), "\n");
       }
-**/
-
-      fprintf(oDebug->file(), "Sorted by min k*\n");
-      multimap<double, int> minKs = seqMer->getMinKs();
-      for ( pair<double, int> p : minKs ) {
-        if ( p.first > 0.0 ) {
-          int idx = p.second;
-
-          fprintf(oDebug->file(), "%s\t%u\t%u\t%s\t%.1f\tpath =",
-          seq.name(),
-          rStart,
-          rEnd,
-          seqMer->seqs.at(idx).c_str(),
-          p.first);
-
-          for ( int i = 0; i < seqMer->paths.at(idx).size(); i++) {
-            fprintf(oDebug->file(), "\t%u ( %d )", gts->at(i)->_pos, seqMer->paths.at(idx).at(i));
-          }
-
-          fprintf(oDebug->file(), "\n");
-        }
-      }
-
-      fprintf(oDebug->file(), "Sorted by max k*\n");
-      multimap<double, int> maxKs = seqMer->getMaxKs();
-      for ( pair<double, int> p : maxKs ) {
-        if ( p.first > 0.0 ) {
-          int idx = p.second;
-
-          fprintf(oDebug->file(), "%s\t%u\t%u\t%s\t%.1f\tpath =",
-          seq.name(),
-          rStart,
-          rEnd,
-          seqMer->seqs.at(idx).c_str(),
-          p.first);
-
-          for ( int i = 0; i < seqMer->paths.at(idx).size(); i++) {
-            fprintf(oDebug->file(), "\t%u ( %d )", gts->at(i)->_pos, seqMer->paths.at(idx).at(i));
-          }
-
-          fprintf(oDebug->file(), "\n");
-        }
-      }
-
-      fprintf(oDebug->file(), "\n");
 
       // generate vcfs
-
+      
     }
   }
 }

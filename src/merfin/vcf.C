@@ -19,7 +19,222 @@
 #include "files.H"
 #include "vcf.H"
 #include "arrays.H"
+#include <algorithm>
+#include <vector>
 
+
+
+gtAllele::gtAllele(vcfRecord *record) {
+    
+    _pos  = record->_pos - 1;
+    
+    splitFields GT((*record->_arr_samples)[0], '/');
+    alleles = new vector<char*>;
+    alleles->push_back(record->_ref);   //  make the alleles.at(0) always be the ref allele
+    _refLen    = strlen(record->_ref);
+    parseGT(GT[0], record->_ref, record->_arr_alts, alleles);
+    parseGT(GT[1], record->_ref, record->_arr_alts, alleles);
+    
+    // _maxRefLen = (strlen(_hap1) > strlen(_hap2)) ? strlen(_hap1) : strlen(_hap2);
+}
+
+
+void
+gtAllele::parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles) {
+
+    // is "." or ref allele
+    if ( strcmp(gt, ".") == 0 || strcmp(gt, "0") == 0 ) {
+      //  Do nothing
+    } else {
+      uint32  altIdx  = strtouint32(gt) - 1;    // gt starts from 1, index from 0
+      char* hap = (*alts)[altIdx];
+
+      vector<char*>::iterator it = find (alleles->begin(), alleles->end(), hap);
+      if ( it == alleles->end() )  //  only add if hap wasn't already added
+        alleles->push_back(hap);
+    }
+}
+
+
+void
+varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
+
+  vector<string>::iterator it = find (seqs.begin(), seqs.end(), seq);
+  if ( it != seqs.end() ) { return; }
+
+  // only insert elements if seq is a new sequence
+  seqs.push_back(seq);
+  gtPaths.push_back(idxPath);  //  0 = ref, 1 = alt1, 2 = alt2, ...
+  idxPaths.push_back(varIdxPath);  // 0-base index where the var start is in the seq
+  lenPaths.push_back(varLenPath);  // 0-base index where the var start is in the seq
+  return;
+}
+
+
+void
+varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak) {
+
+  //  iterate through each base and get kmer
+  uint64 fValue = 0;
+  uint64 rValue = 0;
+  uint64 freq;
+  uint32 numM;  // num. missing kmers
+  uint64 minF;
+  double minK;
+  double maxK;
+  string seq;
+  bool   fExists = false;
+  bool   rExists = false;
+  double readK;
+  double asmK;
+  double kMetric;
+  vector<double> m_ks;
+  bool  evaluate = true;
+  bool  isExpand = false;
+
+  uint32 idx = 0;	// var index in the seqe
+
+  //  get scores at each kmer pos and minimum read multiplicity
+  for ( int ii = 0; ii < seqs.size(); ii++ ) {
+    minF  = UINT64_MAX;
+    minK  = DBL_MAX;
+    maxK  = -2;
+    numM  = 0;
+
+    evaluate = true;
+
+    seq    = seqs.at(ii);
+    m_ks.clear();
+    // fprintf(stderr, "%s:%u-%u\t%s", posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
+
+    idx = 0;
+
+    kmerIterator kiter((char*) seq.c_str(), seq.size());
+    while (kiter.nextMer()) {
+      freq = 0;
+      fValue = 0;
+      rValue = 0;
+      fExists = rlookup->exists(kiter.fmer(), fValue);
+      rExists = rlookup->exists(kiter.rmer(), rValue);
+      isExpand = false;
+
+      if ( fExists || rExists ) {
+          freq = fValue + rValue;
+      }
+
+      if (minF > freq) { minF = freq; };
+
+      readK = (double) freq / peak;
+
+      fValue = 0;
+      rValue = 0;
+      alookup->exists(kiter.fmer(), fValue);
+      alookup->exists(kiter.rmer(), rValue);
+
+      asmK  = (double) (fValue + rValue);
+      
+      //  is the idx anywhere close to idxPath?
+      for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
+        uint32 idxPath = idxPaths.at(ii).at(jj);
+        uint32 lenPath = lenPaths.at(ii).at(jj);
+        int    gtPath  = gtPaths.at(ii).at(jj);
+        //  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
+        if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
+          asmK++; // +1 as we are introducing a new kmer
+          break;  // add only once
+        }
+      }
+
+      if (freq == 0) {
+        kMetric = 0;
+        numM++;
+
+        // no need to evaluate or give scores
+        evaluate = false;
+        // continue;
+      } else if (readK > asmK) {
+        kMetric = readK / asmK - 1;
+      } else {
+        kMetric = asmK  / readK - 1;
+        isExpand = true;
+      }
+
+      if (evaluate && minK > kMetric) { minK = kMetric; };
+      if (evaluate && maxK < kMetric) { maxK = kMetric; };
+
+      if (isExpand)
+        kMetric *= -1;
+
+      m_ks.push_back(kMetric);
+      // fprintf(stderr, "\tidx:%u Kr:%.3f Ka:%.0f K*:%.3f", idx, readK, asmK, kMetric);
+
+      idx++;
+    }
+
+    numMs.push_back(numM);
+    kstrs.push_back(m_ks);
+
+    //  only evaluate when no missing kmers are generated
+    if (evaluate) {
+      minFs.insert(pair<uint64, int>(minF, ii));      // Automatically sorted by min value
+      minKs.insert(pair<double, int>(minK, ii));      // Automatically sorted by min value
+      maxKs.insert(pair<double, int>(maxK, ii));      // Automatically sorted by min value
+    }
+
+    // fprintf(stderr, "\n");
+  }
+  return;
+}
+
+
+double
+varMer::getMinAbsK(int idx) {
+
+  double minAbsK = DBL_MAX;
+  double absK;
+
+  vector<double> kstr = kstrs.at(idx);
+  for (int i = 0; i < kstr.size(); i++) {
+    absK = kstr.at(i);
+    if ( absK < +0 ) absK *= -1;
+    if ( absK < minAbsK ) minAbsK = absK;
+  }
+  return minAbsK;
+}
+
+
+double
+varMer::getMaxAbsK(int idx) {
+  double maxAbsK = -1;
+  double absK;
+
+  vector<double> kstr = kstrs.at(idx);
+  for (int i = 0; i < kstr.size(); i++) {
+    absK = kstr.at(i);
+    if ( absK < 0 ) absK *= -1;
+    if ( absK > maxAbsK ) maxAbsK = absK;
+  }
+
+  return maxAbsK;
+}
+
+double
+varMer::getAvgK(int idx) {
+  double sum = 0;
+  vector<double> kstr = kstrs.at(idx);
+  for (int i = 0; i < kstr.size(); i++) {
+    sum += kstr.at(i);
+  }
+
+  return sum / kstrs.size();
+}
+
+double
+varMer::getMedK(int idx) {
+  vector<double> kstr = kstrs.at(idx);
+  sort (kstr.begin(), kstr.end());
+  return kstr.at(kstr.size()/2);
+}
 
 vcfRecord::vcfRecord() {
   _chr         = NULL;
