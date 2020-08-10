@@ -83,17 +83,17 @@ public:
 
 public:
   char*         _chr;          //  CHR
-  int32         _pos;           //  POS
+  int32         _pos;          //  POS
   char*         _id;           //  ID
   char*         _ref;          //  REF
   char*         _alts;         //  ALT
-  float         _qual;          //  QUAL
+  float         _qual;         //  QUAL
   char*         _filter;       //  FILTER
   char*         _info;         //  INFO
   char*         _formats;      //  FORMAT
   char*         _samples;      //  SAMPLE
-  int           _size_alts;     //  Num. alt variants
-  int           _size_format;   //  Num. format values
+  int           _size_alts;    //  Num. alt variants
+  int           _size_format;  //  Num. format values
   splitFields*  _arr_alts;
   splitFields*  _arr_formats;
   splitFields*  _arr_samples;
@@ -111,14 +111,9 @@ public:
   ~gtAllele();
 
 public:
-  uint32      _pos;
-  uint32      _refLen;
-  //uint32      _maxRefLen;
+  uint32        _pos;
+  uint32        _refLen;
   vector<char*> *alleles;
-  //char*       _hap1;	// inferred haplotype 1
-  //char*       _hap2;    // inferred haplotype 2
-  //char*       _ref;
-  //bool        _hasRef;	// has reference allele
 
 private:
   void parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles);
@@ -153,8 +148,8 @@ public:
   void    addGtAllele(gtAllele *gt) {
     _gts->push_back(gt);
 
-    uint32 rStart = gt->_pos; // already 0-based
-    uint32 rEnd   = rStart + gt->_refLen;	// use refLen to get actual ref coords
+    uint32 rStart = gt->_pos;                // already 0-based
+    uint32 rEnd   = rStart + gt->_refLen;    // use refLen to get actual ref coords
 
     _rStart = ( rStart < _rStart ) ? rStart : _rStart;
     _rEnd   = ( rEnd   > _rEnd   ) ? rEnd   : _rEnd;
@@ -175,11 +170,13 @@ public:
   bool    loadFile(char *inName);
   bool    saveFile(char *outName);
   bool    mergeChrPosGT(uint32 ksize);	//  Merge ChrPosGT when POS are within ksize
+  vector<string> getHeaders()  { return _headers; };
 
 public:
-  char                         *_fName;
-  int32                         _numChr;  //  num. of CHR entries
-  vector<vcfRecord *>           _records;
+  char                           *_fName;
+  int32                           _numChr;  //  num. of CHR entries
+  vector<string>                  _headers;
+  vector<vcfRecord *>             _records;
   map<string, vector<posGT *>* > *_mapChrPosGT; 
 
 };
@@ -204,8 +201,8 @@ public:
 
   double  getMinAbsK(int idx);
   double  getMaxAbsK(int idx);
-  double  getAvgK(int idx);	// avg. k*
-  double  getMedK(int idx);	// median k*
+  double  getAvgAbsK(int idx);	// avg. k*
+  double  getMedAbsK(int idx);	// median k*
 
 public:
   vector< vector<int> >     gtPaths;  //  contains idx

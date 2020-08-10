@@ -64,7 +64,7 @@ varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, v
 
   // only insert elements if seq is a new sequence
   seqs.push_back(seq);
-  gtPaths.push_back(idxPath);  //  0 = ref, 1 = alt1, 2 = alt2, ...
+  gtPaths.push_back(idxPath);      // 0 = ref, 1 = alt1, 2 = alt2, ...
   idxPaths.push_back(varIdxPath);  // 0-base index where the var start is in the seq
   lenPaths.push_back(varLenPath);  // 0-base index where the var start is in the seq
   return;
@@ -90,7 +90,6 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
   double kMetric;
   vector<double> m_ks;
   bool  evaluate = true;
-  bool  isExpand = false;
 
   uint32 idx = 0;	// var index in the seqe
 
@@ -110,13 +109,14 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
     idx = 0;
 
     kmerIterator kiter((char*) seq.c_str(), seq.size());
-    while (kiter.nextMer()) {
+    while (kiter.nextBase()) {
       freq = 0;
       fValue = 0;
       rValue = 0;
-      fExists = rlookup->exists(kiter.fmer(), fValue);
-      rExists = rlookup->exists(kiter.rmer(), rValue);
-      isExpand = false;
+      if (kiter.isValid()) {
+        fExists = rlookup->exists(kiter.fmer(), fValue);
+        rExists = rlookup->exists(kiter.rmer(), rValue);
+      }
 
       if ( fExists || rExists ) {
           freq = fValue + rValue;
@@ -128,8 +128,10 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
 
       fValue = 0;
       rValue = 0;
-      alookup->exists(kiter.fmer(), fValue);
-      alookup->exists(kiter.rmer(), rValue);
+      if (kiter.isValid()) {
+        alookup->exists(kiter.fmer(), fValue);
+        alookup->exists(kiter.rmer(), rValue);
+      }
 
       asmK  = (double) (fValue + rValue);
       
@@ -138,7 +140,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
         uint32 idxPath = idxPaths.at(ii).at(jj);
         uint32 lenPath = lenPaths.at(ii).at(jj);
         int    gtPath  = gtPaths.at(ii).at(jj);
-        //  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
+        // fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
         if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
           asmK++; // +1 as we are introducing a new kmer
           break;  // add only once
@@ -146,24 +148,21 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
       }
 
       if (freq == 0) {
-        kMetric = 0;
+        kMetric = -1;  // use 0 if we are using non-abs k*
         numM++;
 
         // no need to evaluate or give scores
         evaluate = false;
         // continue;
+        
       } else if (readK > asmK) {
         kMetric = readK / asmK - 1;
       } else {
         kMetric = asmK  / readK - 1;
-        isExpand = true;
       }
 
       if (evaluate && minK > kMetric) { minK = kMetric; };
       if (evaluate && maxK < kMetric) { maxK = kMetric; };
-
-      if (isExpand)
-        kMetric *= -1;
 
       m_ks.push_back(kMetric);
       // fprintf(stderr, "\tidx:%u Kr:%.3f Ka:%.0f K*:%.3f", idx, readK, asmK, kMetric);
@@ -190,50 +189,74 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak)
 double
 varMer::getMinAbsK(int idx) {
 
+  // fprintf(stderr, "getMinAbsK(%d) called.\n", idx);
   double minAbsK = DBL_MAX;
   double absK;
 
   vector<double> kstr = kstrs.at(idx);
   for (int i = 0; i < kstr.size(); i++) {
     absK = kstr.at(i);
-    if ( absK < +0 ) absK *= -1;
-    if ( absK < minAbsK ) minAbsK = absK;
+    if ( absK < 0 )  continue;  //  ignore the missings
+    if ( absK < minAbsK ) { minAbsK = absK; }
   }
+  //  if all kmers are 'missings'
+  if (minAbsK == DBL_MAX) return -1;
   return minAbsK;
 }
 
 
 double
 varMer::getMaxAbsK(int idx) {
-  double maxAbsK = -1;
+  // fprintf(stderr, "getMaxAbsK(%d) called.\n", idx);
+
+  double maxAbsK = -2;
   double absK;
 
   vector<double> kstr = kstrs.at(idx);
   for (int i = 0; i < kstr.size(); i++) {
     absK = kstr.at(i);
-    if ( absK < 0 ) absK *= -1;
-    if ( absK > maxAbsK ) maxAbsK = absK;
+    if ( absK > maxAbsK ) { maxAbsK = absK; }
   }
-
   return maxAbsK;
 }
 
 double
-varMer::getAvgK(int idx) {
+varMer::getAvgAbsK(int idx) {
+  // fprintf(stderr, "getAvgAbsK(%d) called.\n", idx);
+
   double sum = 0;
+  double absK;
+
   vector<double> kstr = kstrs.at(idx);
   for (int i = 0; i < kstr.size(); i++) {
-    sum += kstr.at(i);
+    absK = kstr.at(i);
+    if (absK >= 0)
+      sum += absK;
   }
 
-  return sum / kstrs.size();
+  // no k* >= 0
+  if ( kstr.size() == numMs.at(idx) )
+    return -1;
+  else
+    return sum / ( kstr.size() - numMs.at(idx) );
 }
 
 double
-varMer::getMedK(int idx) {
+varMer::getMedAbsK(int idx) {
+  // fprintf(stderr, "getMedAbsK(%d) called.\n", idx);
+
   vector<double> kstr = kstrs.at(idx);
   sort (kstr.begin(), kstr.end());
-  return kstr.at(kstr.size()/2);
+  int i = 0;
+  for (; i < kstr.size(); i++) {
+    if ( kstr.at(i) >= 0 ) { break; }
+  }
+
+  //  no k* >= 0
+  if (i == kstr.size())
+     return -1;
+  else
+    return kstr.at(i + ((kstr.size() - i)/2));
 }
 
 vcfRecord::vcfRecord() {
@@ -272,7 +295,10 @@ void
 vcfRecord::load(char *inLine) {
 
   // Skip header lines
-  if (inLine[0] == '#')  return;
+  if (inLine[0] == '#')  {
+    
+    return;
+  }
   
   splitFields W(inLine, '\t');
 
@@ -339,6 +365,8 @@ vcfFile::loadFile(char *inName) {
 
     // Header line?
     if (L[0] == '#') {
+      // keep header lines
+      _headers.push_back(string(L));
 
       // Count unique CHR ids
       if(strncmp(L, "##contig=<ID", strlen("##contig=<ID")) == 0) {
@@ -362,7 +390,8 @@ vcfFile::loadFile(char *inName) {
 
   delete [] L;
 
-  fprintf(stderr, "  Loaded " F_SIZE_T " records with %lu unique contig(s) from  %u contig IDs.\n\n", _records.size(), _mapChrPosGT->size(), _numChr);
+  fprintf(stderr, "   Collected " F_SIZE_T " header lines.\n", _headers.size());
+  fprintf(stderr, "   Loaded " F_SIZE_T " records with %lu unique contig(s) from  %u contig IDs.\n\n", _records.size(), _mapChrPosGT->size(), _numChr);
 
   // Iterate through the records and get per chr posGTs
   for (uint32 ii = 0; ii < _records.size(); ii++) {

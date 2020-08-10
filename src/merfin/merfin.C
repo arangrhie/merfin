@@ -263,9 +263,13 @@ varMers(dnaSeqFile       *sfile,
         char             *out) {
 
   //  output file
-  compressedFileWriter *oPri    = new compressedFileWriter(concat(out, ".pri.vcf"));
-  compressedFileWriter *oAlt    = new compressedFileWriter(concat(out, ".alt.vcf"));
+  compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
   compressedFileWriter *oDebug  = new compressedFileWriter(concat(out, ".debug"));
+
+  //  write vcf headers
+  for ( string header : vfile->getHeaders()) {
+    fprintf(oVcf->file(), "%s\n", header.c_str());
+  }
 
   //  What is the kmer size?
   uint32 ksize = kmer::merSize();
@@ -373,7 +377,7 @@ varMers(dnaSeqFile       *sfile,
       //  score each combination
       seqMer->score(rlookup, alookup, peak);
 
-      //  print haps
+      //  print to debug
       for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
         fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.2f\t%.2f\t%.2f\t%.2f\t",
           varMerId++,
@@ -384,21 +388,25 @@ varMers(dnaSeqFile       *sfile,
           seqMer->numMs.at(idx),	//  missing
           seqMer->getMinAbsK(idx),
           seqMer->getMaxAbsK(idx),
-          seqMer->getAvgK(idx),
-          seqMer->getMedK(idx)
+          seqMer->getAvgAbsK(idx),
+          seqMer->getMedAbsK(idx)
         );
 
-        for ( int i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
-          // Ignore the ref-allele (0/0) GTs
-          // print only the non-ref allele variants for fixing
-          int altIdx = seqMer->gtPaths.at(idx).at(i);
-          if (altIdx > 0) {
-            fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-              seq.name(),
-              (gts->at(i)->_pos+1),
-              gts->at(i)->alleles->at(0),
-              gts->at(i)->alleles->at(altIdx)
-            );
+        //  new vcf records
+        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+        if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
+          for ( int i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+            // Ignore the ref-allele (0/0) GTs
+            // print only the non-ref allele variants for fixing
+            int altIdx = seqMer->gtPaths.at(idx).at(i);
+            if (altIdx > 0) {
+              fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+                seq.name(),
+                (gts->at(i)->_pos+1),
+                gts->at(i)->alleles->at(0),
+                gts->at(i)->alleles->at(altIdx)
+              );
+            }
           }
         }
         fprintf(oDebug->file(), "\n");
@@ -545,17 +553,18 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Score each variant, or variants within distance k and its combination by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "   Output:\n");
+    fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
     fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
-    fprintf(stderr, "      seqName         - name of the sequence this kmer is from\n");
-    fprintf(stderr, "      varMerStart     - start position (0-based) of the variant (s), including sequences upstream of k-1 bp\n");
-    fprintf(stderr, "      varMerEnd       - end position (1-based) of the variant (s), including sequences downstream of k-1 bp\n");
-    fprintf(stderr, "      varMerSeq       - combination of variant sequence to evalute\n");
-    fprintf(stderr, "      score           - score, min k*? median k*? to be decided...\n");
-    fprintf(stderr, "      path            - position of the variant (type of variant used: 0 = hap1, 1 = hap2, 2 = ref)\n");
-    fprintf(stderr, "    <output>.pri.vcf  - variants chosen. use bcftools to polish <seq.fata>\n");
-    fprintf(stderr, "    <output>.alt.vcf  - variants not chosen but have high support\n");
+    fprintf(stderr, "      seqName     - name of the sequence this kmer is from\n");
+    fprintf(stderr, "      varMerStart - start position (0-based) of the variant (s), including sequences upstream of k-1 bp\n");
+    fprintf(stderr, "      varMerEnd   - end position (1-based) of the variant (s), including sequences downstream of k-1 bp\n");
+    fprintf(stderr, "      varMerSeq   - combination of variant sequence to evalute\n");
+    fprintf(stderr, "      score       - score, min k*? median k*? to be decided...\n");
+    fprintf(stderr, "      path        - position of the variant (type of variant used: 0 = hap1, 1 = hap2, 2 = ref)\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
+    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
@@ -609,6 +618,7 @@ main(int argc, char **argv) {
     dumpKmetric(outName, seqFile, readLookup, asmLookup, peak);
   }
   if (reportType == OP_VAR_MER) {
+
     //  Open vcf file
     if (vcfName == NULL) {
       fprintf(stderr, "No variant call (-vcf) supplied.\n");
