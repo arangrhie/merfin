@@ -161,7 +161,8 @@ dumpKmetric(char               *outName,
         if ( readK == 0 )
           missing++;
 
-        fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+        else
+          fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
                  seq.name(),
                  kiter.position(),
                  readK,
