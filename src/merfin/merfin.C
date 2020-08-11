@@ -117,6 +117,12 @@ getKmetric(merylExactLookup   *rlookup,
 
   readK = (double) (fValue + rValue) / peak;
 
+  if (readK < 1) {
+     readK = 1;
+  } else {
+     readK = round(readK);
+  }
+
   fValue = 0;
   rValue = 0;
   alookup->exists(fmer, fValue);
@@ -157,7 +163,6 @@ dumpKmetric(char               *outName,
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
         kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK, peak);
-
         if ( readK == 0 )
           missing++;
 
@@ -220,12 +225,7 @@ histKmetric(char               *outName,
           undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
           //  TODO: Check if this kmer was already coutned. Only if not,
           //  overcpy += (asmK - readK)
-          if (readK < 1) {
-            roundedReadK = 1;
-          } else {
-            roundedReadK = round(readK);
-          }
-          overcpy += (double) 1 - roundedReadK / asmK;  //  (asmK - readK) / asmK
+          overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
         } else { // readK > asmK
           overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
         }
