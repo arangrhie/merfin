@@ -104,7 +104,8 @@ void
 dumpKmetric(char               *outName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
-            merylExactLookup   *alookup) {
+            merylExactLookup   *alookup,
+            bool                skipMissings) {
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
@@ -123,8 +124,8 @@ dumpKmetric(char               *outName,
         if ( readK == 0 )
           missing++;
 
-        else
-          fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+        if ( skipMissings )  continue;
+        fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
                  seq.name(),
                  kiter.position(),
                  readK,
@@ -377,20 +378,20 @@ varMers(dnaSeqFile       *sfile,
 
 int
 main(int argc, char **argv) {
-  char           *seqName    = NULL;
-  char           *vcfName    = NULL;
-  char           *outName    = NULL;
-  char           *seqDBname  = NULL;
+  char           *seqName     = NULL;
+  char           *vcfName     = NULL;
+  char           *outName     = NULL;
+  char           *seqDBname   = NULL;
   char           *readDBname  = NULL;
 
-  uint64          minV       = 0;
-  uint64          maxV       = UINT64_MAX;
-  static uint64   peak       = 0;
-
-  uint32          threads    = omp_get_max_threads();
-  uint32          memory1    = 0;
-  uint32          memory2    = 0;
-  uint32          reportType = OP_NONE;
+  uint64          minV        = 0;
+  uint64          maxV        = UINT64_MAX;
+  static uint64   peak        = 0;
+  bool            skipMissing = false;
+  uint32          threads     = omp_get_max_threads();
+  uint32          memory1     = 0;
+  uint32          memory2     = 0;
+  uint32          reportType  = OP_NONE;
 
   vector<char *>  err;
   int             arg = 1;
@@ -433,6 +434,9 @@ main(int argc, char **argv) {
 
     } else if (strcmp(argv[arg], "-dump") == 0) {
       reportType = OP_DUMP;
+
+    } else if (strcmp(argv[arg], "-skipMissing") == 0) {
+      skipMissing = true;
 
     } else if (strcmp(argv[arg], "-vmer") == 0) {
       reportType = OP_VAR_MER;
@@ -497,6 +501,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "  -dump\n");
     fprintf(stderr, "   Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output\n");
+    fprintf(stderr, "   Optional: -skipMissing will skip the missing kmer sites to be printed\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*\n");
     fprintf(stderr, "      seqName    - name of the sequence this kmer is from\n");
@@ -572,7 +577,7 @@ main(int argc, char **argv) {
   }
   if (reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
-    dumpKmetric(outName, seqFile, readLookup, asmLookup);
+    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing);
   }
   if (reportType == OP_VAR_MER) {
 
