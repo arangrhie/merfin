@@ -388,8 +388,8 @@ ifeq "$(strip ${DESTDIR})" ""
   BUILD_DIR    := $(realpath ..)/build/obj
   TARGET_DIR   := $(realpath ..)/build
 else
-  BUILD_DIR    := $(DESTDIR)/canu/build/obj
-  TARGET_DIR   := $(DESTDIR)/canu/build
+  BUILD_DIR    := $(DESTDIR)/merfin/build/obj
+  TARGET_DIR   := $(DESTDIR)/merfin/build
 endif
 
 #

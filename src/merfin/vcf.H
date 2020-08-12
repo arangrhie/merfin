@@ -182,41 +182,4 @@ public:
 };
 
 
-class varMer {
-
-public:
-
-  varMer(posGT* posGt){
-    this->posGt = posGt;
-  };
-  ~varMer();
-
-  void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
-
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup, uint64 peak);
-
-  multimap<uint64, int> getMinFreqs() { return minFs; };
-  multimap<double, int> getMinKs()    { return minKs; };
-  multimap<double, int> getMaxKs()    { return maxKs; };
-
-  double  getMinAbsK(int idx);
-  double  getMaxAbsK(int idx);
-  double  getAvgAbsK(int idx);	// avg. k*
-  double  getMedAbsK(int idx);	// median k*
-
-public:
-  vector< vector<int> >     gtPaths;  //  contains idx
-  vector< vector<uint32> >  idxPaths;  //  contains idx
-  vector< vector<uint32> >  lenPaths;  //  contains idx
-  vector< string >          seqs;   //  sequence combinations
-  vector< uint32 >          numMs;  //  num missing kmers. follows the order of seqs
-  vector< vector<double> >  kstrs;  //  k* values, kstrs.at(0) is the k* value of the first seq
-  multimap<uint64, int >    minFs;  //  min freq, sorted from lowest to greatest, with idx on the second
-  multimap<double, int >    minKs;  //  min k*,   sorted from lowest to greatest, with idx on the second
-  multimap<double, int >    maxKs;  //  max k*,   sorted from lowest to greatest, with idx on the second
-  posGT*               posGt;
-  vector< uint32 >     order;
-};
-
-
 #endif  //  AS_UTL_VCF_H

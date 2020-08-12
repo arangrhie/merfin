@@ -1,5 +1,5 @@
 TARGET   := merfin
-SOURCES  := merfin.C vcf.C 
+SOURCES  := merfin.C vcf.C varMer.C
 
 SRC_INCDIRS  := . ../utility/src/utility
 
