@@ -79,11 +79,12 @@ public:
   ~vcfRecord();
 
   void    load(char *inLine);
+  bool    isInvalid() { return !isValid;  };
   void    save(FILE *outFile);
 
 public:
   char*         _chr;          //  CHR
-  int32         _pos;          //  POS
+  uint32        _pos;          //  POS
   char*         _id;           //  ID
   char*         _ref;          //  REF
   char*         _alts;         //  ALT
@@ -97,6 +98,7 @@ public:
   splitFields*  _arr_alts;
   splitFields*  _arr_formats;
   splitFields*  _arr_samples;
+  bool           isValid = true;  //  has non-sense GT?
 };
 
 
@@ -116,7 +118,7 @@ public:
   vector<char*> *alleles;
 
 private:
-  void parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles);
+  void parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles, bool &isValid);
 };
 
 /****************************************************

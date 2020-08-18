@@ -280,22 +280,24 @@ varMers(dnaSeqFile       *sfile,
       continue;
 
     //  get chr specific posGTs
-    posGTlist   = mapChrPosGT->at(seq.name());
+    posGTlist = mapChrPosGT->at(seq.name());
 
     //  get sequence combinations on each posGT list
     for (int posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
 
       // initialize variables
-      posGt       = posGTlist->at(posGtIdx);
-      rStart      = posGt->_rStart;  // 0-based
+      posGt  = posGTlist->at(posGtIdx);
+      rStart = posGt->_rStart;  // 0-based
       if (rStart > K_PADD) { rStart -= K_PADD; }
       else { rStart = 0; }
 
-      rEnd        = posGt->_rEnd;             // 1-based
+      rEnd   = posGt->_rEnd;             // 1-based
       if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
       else { rEnd = seq.length(); }
 
-      gts         = posGt->_gts;
+      //  fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
+
+      gts    = posGt->_gts;
       refIdxList.clear();
       refLenList.clear();
       path.clear();
@@ -304,39 +306,37 @@ varMers(dnaSeqFile       *sfile,
 
       //  load original sequence from rStart to rEnd
       if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        //  fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
         return;
       }
       // DEBUG  fprintf(stderr, "%s\n", refTemplate);
        
       //  load mapPosHap
+      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %d | ", gts->size());
       for (int i = 0; i < gts->size(); i++) {
          gt = gts->at(i);
          refIdxList.push_back(gt->_pos - rStart);
          refLenList.push_back(gt->_refLen);
 
+         // fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
          //  add alleles. alleles.at(0) is always the ref allele
-         //  haps = gt->alleles;
-         
          mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
-         //fprintf(stderr, "%s %u %u %u %s %s\n",
-         //        seq.name(), rStart, rEnd, gt->_pos, gt->_hap1, gt->_hap2);
-
-         // clear haps if it was copied; since we are referencing the pointer leave it as it is
-         // haps.clear();
       }
+      //  fprintf(stderr, "\n");
 
       varMer* seqMer = new varMer(posGt);
 
       //  traverse through each gt combination
+      //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
       traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
-
+      //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
+          
       //  score each combination
       seqMer->score(rlookup, alookup);
 
       //  print to debug
       for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.2f\t%.2f\t%.2f\t%.2f\t",
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
           seq.name(),
           rStart,
@@ -367,10 +367,12 @@ varMers(dnaSeqFile       *sfile,
           }
         }
         fprintf(oDebug->file(), "\n");
+        fflush(oDebug->file());
       }
 
       // generate vcfs
-      
+      fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
+      fflush(oVcf->file());
     }
   }
 }
@@ -511,21 +513,25 @@ main(int argc, char **argv) {
     fprintf(stderr, "      k*         - 0-centered k* value\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  -vmer\n");
-    fprintf(stderr, "   Score each variant, or variants within distance k and its combination by k*.\n");
+    fprintf(stderr, "   Score each variant, or variants within distance k and its combination (varMer) by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
     fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
-    fprintf(stderr, "      seqName     - name of the sequence this kmer is from\n");
-    fprintf(stderr, "      varMerStart - start position (0-based) of the variant (s), including sequences upstream of k-1 bp\n");
-    fprintf(stderr, "      varMerEnd   - end position (1-based) of the variant (s), including sequences downstream of k-1 bp\n");
+    fprintf(stderr, "      varMerID    - unique numbering, starting from 0\n");
+    fprintf(stderr, "      varMerRange - seqName:start-end. position (0-based) of the variant (s), including sequences upstream and downstream of k-1 bp\n");
     fprintf(stderr, "      varMerSeq   - combination of variant sequence to evalute\n");
-    fprintf(stderr, "      score       - score, min k*? median k*? to be decided...\n");
-    fprintf(stderr, "      path        - position of the variant (type of variant used: 0 = hap1, 1 = hap2, 2 = ref)\n");
+    fprintf(stderr, "      numMissings - total number of missing kmers\n");
+    fprintf(stderr, "      min k*      - minimum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      max k*      - maximum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      avg k*      - average of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      median k*   - median  of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      record      - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish\n");
+    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "     0/1 and 1/0 are heterozygous alleles, with equal num. missings and avg. |k*|.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 

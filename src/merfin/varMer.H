@@ -46,9 +46,9 @@ public:
 
   void score(merylExactLookup *rlookup, merylExactLookup *alookup);
 
-  multimap<double, int> getMinKs()    { return minKs; };
-  multimap<double, int> getMaxKs()    { return maxKs; };
-
+  string  bestVariant();
+  string  getHomRecord(int idx);
+  string  getHetRecord(int idx1, int idx2);
   double  getMinAbsK(int idx);
   double  getMaxAbsK(int idx);
   double  getAvgAbsK(int idx);  // avg. k*
@@ -64,8 +64,7 @@ public:
   vector< string >          seqs;   //  sequence combinations
   vector< uint32 >          numMs;  //  num missing kmers. follows the order of seqs
   vector< vector<double> >  kstrs;  //  k* values, kstrs.at(0) is the k* value of the first seq
-  multimap<double, int >    minKs;  //  min k*,   sorted from lowest to greatest, with idx on the second
-  multimap<double, int >    maxKs;  //  max k*,   sorted from lowest to greatest, with idx on the second
+  multimap<double, int >    avgKs;  //  avg |k*|,  sorted from lowest to greatest, with idx on the second
   posGT*               posGt;
   vector< uint32 >     order;
 

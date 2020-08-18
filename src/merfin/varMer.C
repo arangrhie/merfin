@@ -91,24 +91,17 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 
   //  iterate through each base and get kmer
   uint32 numM;  // num. missing kmers
-  double minK;
-  double maxK;
   string seq;
   double readK;
   double asmK;
   double kMetric;
   vector<double> m_ks;
-  bool  evaluate = true;
 
   uint32 idx = 0;       // var index in the seqe
 
   //  get scores at each kmer pos and minimum read multiplicity
   for ( int ii = 0; ii < seqs.size(); ii++ ) {
-    minK  = DBL_MAX;
-    maxK  = -2;
     numM  = 0;
-
-    evaluate = true;
 
     seq    = seqs.at(ii);
     m_ks.clear();
@@ -143,18 +136,12 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
         kMetric = -1;  // use 0 if we are using non-abs k*
         numM++;
 
-        // no need to evaluate min or max K
-        evaluate = false;
-
       } else if (readK > asmK) {
         kMetric = readK / asmK - 1;
 
       } else {
         kMetric = asmK  / readK - 1;
       }
-
-      if (evaluate && minK > kMetric) { minK = kMetric; };
-      if (evaluate && maxK < kMetric) { maxK = kMetric; };
 
       m_ks.push_back(kMetric);
       // fprintf(stderr, "\tidx:%u Kr:%.3f Ka:%.0f K*:%.3f", idx, readK, asmK, kMetric);
@@ -165,15 +152,133 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
     numMs.push_back(numM);
     kstrs.push_back(m_ks);
 
-    //  only evaluate when no missing kmers are generated
-    if (evaluate) {
-      minKs.insert(pair<double, int>(minK, ii));      // Automatically sorted by min value
-      maxKs.insert(pair<double, int>(maxK, ii));      // Automatically sorted by min value
-    }
+    // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
 
     // fprintf(stderr, "\n");
   }
   return;
+}
+
+
+string
+varMer::bestVariant() {
+
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+    //  ignore when all kmers are 'missings'
+    if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
+
+    //  found a smaller numMissing
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing ) {
+      //  has the same numMissing
+      idxs.push_back(ii);
+      
+    } // else : ignore
+  }
+
+  //  ignore if all kmers creats only missings
+  if ( numMissing == UINT32_MAX ) return "";
+
+  //  only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // get idx of the combination
+    int idx = idxs.at(0);
+
+    // make a vcf record and return
+    return getHomRecord(idx);
+
+  } else if ( idxs.size() > 1) {
+    // found multiple combination equally having the minimum missing kmers.
+    // sort by the Avg. Absolute K* closest to 0
+    // and the second best as het
+    for ( int i = 0; i < idxs.size(); i++ ) {
+      int idx = idxs.at(i);
+      avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
+    }
+
+    multimap<double, int >::iterator it = avgKs.begin();
+    double  avgK1 = (*it).first;
+    int      idx1 = (*it).second;
+    it++;
+    double avgK2 = (*it).first;
+    int     idx2 = (*it).second;
+
+    if ( avgK1 == avgK2 ) {
+      // if equaly scored, chose the longer allele as hap1
+      if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
+        return getHetRecord(idx1, idx2);
+      } else {
+        return getHetRecord(idx2, idx1);
+      }
+    } else {
+      return getHomRecord(idx1);
+    }
+  }
+
+  // no idxs?
+  return "";
+}
+
+string
+varMer::getHetRecord(int idx1, int idx2) {
+
+  string records;
+  for ( int i = 0; i < gtPaths.at(idx1).size(); i++) {
+    int altIdx1 = gtPaths.at(idx1).at(i);
+    int altIdx2 = gtPaths.at(idx2).at(i);
+
+    // alt1 == ref && alt2 == ref: ignore
+    if ( altIdx1 + altIdx2 > 0 ) {
+      records = records + posGt->_chr + "\t" + 
+                to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
+                posGt->_gts->at(i)->alleles->at(0) + "\t";
+
+      // alt1 == ref && alt2 == alt: 0/1
+      if ( altIdx1 == 0 && altIdx2 > 0 ) {
+        records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
+                  "PASS\t.\tGT\t0/1\n";
+
+      } 
+      // alt1 == alt && alt2 == alt: 1/2
+      else if ( altIdx1 > 0 && altIdx2 > 0 ) {
+        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) +
+                  "," +
+                  posGt->_gts->at(i)->alleles->at(altIdx2) +
+                  "\t.\t" +
+                  "PASS\t.\tGT\t1/2\n";
+      }
+      // alt1 == alt && alt2 == ref: 1/0
+      else if ( altIdx1 > 0 && altIdx2 == 0 ) {
+        records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
+                  "PASS\t.\tGT\t1/0\n";
+      }
+    }
+  }
+  return records;
+}
+
+string
+varMer::getHomRecord(int idx) {
+  string records;
+  for ( int i = 0; i < gtPaths.at(idx).size(); i++) {
+    int altIdx = gtPaths.at(idx).at(i);
+    if ( altIdx > 0 ) {
+      // altIdx is the reference allele: ignore
+      records = records + posGt->_chr + "\t" +
+                to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
+                posGt->_gts->at(i)->alleles->at(0) + "\t" +
+                posGt->_gts->at(i)->alleles->at(altIdx) + "\t.\t" +
+                "PASS\t.\tGT\t1/1\n";
+    }
+  }
+  return records;
 }
 
 
