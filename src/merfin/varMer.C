@@ -256,7 +256,7 @@ varMer::getHetRecord(int idx1, int idx2) {
       }
       // alt1 == alt && alt2 == ref: 1/0
       else if ( altIdx1 > 0 && altIdx2 == 0 ) {
-        records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
+        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
                   "PASS\t.\tGT\t1/0\n";
       }
     }
