@@ -52,7 +52,7 @@ replace(string a, int i, int len, char* rep) {
 
 
 string
-traverse(int             idx,
+traverse(uint32          idx,
          vector<uint32>  refIdxList,
          vector<uint32>  refLenList,
          map<int, vector<char*> >  posHaps,
@@ -63,25 +63,67 @@ traverse(int             idx,
   if (idx < refIdxList.size()) {
 
     vector<char*> haps = posHaps.at(idx);
+
+    // fprintf(stderr, "[ DEBUG ] :: idx = %u | candidate = %s\n", idx, candidate.c_str());
+
+    //  for each haplotype sequence, make a combination
+    //  evaluate excluding the next overlapping idx + 1
+    //  j = 0 is always the REF allele
     for (int j = 0; j < haps.size(); j++) {
-
       path.push_back(j);
-
       char* hap = haps.at(j);
+      string replaced = candidate;
+      int delta = 0;
+      int skipped = 0;
+      bool overlaps = false;
 
-      //  Make the replaced ver.
-      string replaced = replace(candidate, refIdxList.at(idx), refLenList.at(idx), hap);
+      //  Make the replaced ver. Skip if reference allele.
+      if ( j > 0) {
+        replaced = replace(candidate, refIdxList.at(idx), refLenList.at(idx), hap);
+        // fprintf(stderr, "[ DEBUG ] :: replaced = %s | refIdxList.at(%u) = %u | refLenList.at(%u) = %u, hap = %s\n", replaced.c_str(), idx, refIdxList.at(idx), idx, refLenList.at(idx), hap);
 
-      //  Shift refIdx
-      int delta = strlen(hap) - refLenList.at(idx);
+        //  If the next variant overlaps, skip it
+        //  Only skip when hap is not REF
+        if (idx + 1 < refIdxList.size()) {
+          for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
+            //  fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u + %u? hap = %d\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), j);
+            if ( refIdxList.at(i) < refIdxList.at(idx) + refLenList.at(idx) ) {
+              //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u + %u. skip %u.\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), refIdxList.at(i));
+              overlaps = true;
+              idx++;             //  force skip by jumping the idx
+              path.push_back(0); //  take the ref allele for 'no change'
+              skipped++;
+            } else {
+              //  fprintf(stderr, "[ DEBUG ] :: No, %u DOES NOT overlaps %u + %u. keep %u\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), refIdxList.at(i));
+              break;
+            }
+          }
+        }
 
-      //  Apply to the rest of the positions
-      for (int i = idx + 1; i < refIdxList.size(); i++) {
-        refIdxList.at(i) += delta;
+        //  if this is the end of the list, we are done
+        if ( overlaps && idx == refIdxList.size() - 1) {
+          seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
+          //  fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d\n", refIdxList.at(idx), replaced.c_str(), j);
+          for (int k = 0; k < skipped; k++) {
+            path.pop_back();
+          //  fprintf(stderr, "[ DEBUG ] :: Pop! idx = %u\n", idx);
+          }
+          path.pop_back();  // pop the current j
+          continue;
+        }      
+
+        //  Apply to the rest of the positions, after skipping overlaps
+        //  refIdx in overlaps should remain as they were
+        //  as we are using ref allele at these sites anyway
+        delta = strlen(hap) - refLenList.at(idx);
+        //  fprintf(stderr, "[ DEBUG ] :: Shift idxs from %u. : hap = %d\n", idx + 1, j);
+        for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
+          refIdxList.at(i) += delta;
+        }
+
+        //  Change refLen
+        refLenList.at(idx) = strlen(hap);
       }
-
-      //  Change refLen
-      refLenList.at(idx) = strlen(hap);
 
       //  Traverse
       replaced = traverse(idx + 1, refIdxList, refLenList, posHaps, replaced, path, seqMer);
@@ -89,14 +131,19 @@ traverse(int             idx,
       //  Only do something when all nodes are visited
       if (idx == refIdxList.size() - 1) {
         seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
+        //  fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
       }
 
-      path.pop_back();
-
+      if ( skipped > 0 ) {
+        for (int k = 0; k < skipped; k++) {
+          //  fprintf(stderr, "[ DEBUG ] :: Pop! %d\n", k);
+          path.pop_back();
+        }
+      }
+      path.pop_back();  // pop the current j
     }
-
   }
-  idx--;
+  // idx--;
   return candidate;
 }
 
