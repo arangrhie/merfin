@@ -359,7 +359,7 @@ varMers(dnaSeqFile       *sfile,
       // DEBUG  fprintf(stderr, "%s\n", refTemplate);
        
       //  load mapPosHap
-      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %d | ", gts->size());
+      // fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
       for (int i = 0; i < gts->size(); i++) {
          gt = gts->at(i);
          refIdxList.push_back(gt->_pos - rStart);
@@ -369,7 +369,14 @@ varMers(dnaSeqFile       *sfile,
          //  add alleles. alleles.at(0) is always the ref allele
          mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
       }
-      //  fprintf(stderr, "\n");
+      // fprintf(stderr, "\n");
+
+			if ( refIdxList.size() > 15 ) {
+				fprintf(stderr, "PANIC : This combination has too many variants ( > 15 ) to consider.\n");
+				fprintf(stderr, "  Skipping this region. Consider filter the vcf before proceeding.\n");
+				fprintf(stderr, "  Combination skipped includes variants in %s:%u-%u\n\n", seq.name(), rStart, rEnd);
+				continue;
+			}
 
       varMer* seqMer = new varMer(posGt);
 
