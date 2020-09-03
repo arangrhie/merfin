@@ -240,8 +240,16 @@ varMer::getHetRecord(int idx1, int idx2) {
                 to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
                 posGt->_gts->at(i)->alleles->at(0) + "\t";
 
+      // alt1 == alt2: 1/1
+      // Sometimes, there are cases where path is different but the allele chosen overlaps
+      if ( altIdx1 == altIdx2 ) {
+        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
+                  "PASS\t.\tGT\t1/1\n";
+
+
+      }
       // alt1 == ref && alt2 == alt: 0/1
-      if ( altIdx1 == 0 && altIdx2 > 0 ) {
+      else if ( altIdx1 == 0 && altIdx2 > 0 ) {
         records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
                   "PASS\t.\tGT\t0/1\n";
 
