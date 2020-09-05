@@ -316,6 +316,10 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
         posGtSizeA--;
         removed++;
 
+				//  Extend end
+				if ( iEnd > end )
+					end = iEnd;
+
       } else {
         start = posGTlist->at(ii)->_rStart;
         end   = posGTlist->at(ii)->_rEnd;
