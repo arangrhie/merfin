@@ -80,21 +80,33 @@ traverse(uint32          idx,
       //  Make the replaced ver. Skip if reference allele.
       if ( j > 0) {
         replaced = replace(candidate, refIdxList.at(idx), refLenList.at(idx), hap);
-        // fprintf(stderr, "[ DEBUG ] :: replaced = %s | refIdxList.at(%u) = %u | refLenList.at(%u) = %u, hap = %s\n", replaced.c_str(), idx, refIdxList.at(idx), idx, refLenList.at(idx), hap);
+        //  fprintf(stderr, "[ DEBUG ] :: replaced = %s | refIdxList.at(%u) = %u | refLenList.at(%u) = %u, hap = %s\n", replaced.c_str(), idx, refIdxList.at(idx), idx, refLenList.at(idx), hap);
+
+				//  Apply to the rest of the positions, after skipping overlaps
+				//  refIdx in overlaps should remain as they were
+				//  as we are using ref allele at these sites anyway
+				//  This has to be done *before* skipping as idx changes.
+				delta = strlen(hap) - refLenList.at(idx);
+
+				//  Affected base right most index due to this replacement
+				uint32 refAffected = refIdxList.at(idx) + refLenList.at(idx);
+
+				//  Change refLen
+		    refLenList.at(idx) = strlen(hap);
 
         //  If the next variant overlaps, skip it
         //  Only skip when hap is not REF
         if (idx + 1 < refIdxList.size()) {
           for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-            //  fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u + %u? hap = %d\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), j);
-            if ( refIdxList.at(i) < refIdxList.at(idx) + refLenList.at(idx) ) {
-              //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u + %u. skip %u.\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), refIdxList.at(i));
+            //  fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
+            if ( refIdxList.at(i) < refAffected ) {
+              //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u. skip %u.\n", refIdxList.at(i), refAffected, refIdxList.at(i));
               overlaps = true;
               idx++;             //  force skip by jumping the idx
               path.push_back(0); //  take the ref allele for 'no change'
               skipped++;
             } else {
-              //  fprintf(stderr, "[ DEBUG ] :: No, %u DOES NOT overlaps %u + %u. keep %u\n", refIdxList.at(i), refIdxList.at(idx), refLenList.at(idx), refIdxList.at(i));
+              //  fprintf(stderr, "[ DEBUG ] :: No, %u DOES NOT overlaps %u. keep %u\n", refIdxList.at(i), refAffected, refIdxList.at(i));
               break;
             }
           }
@@ -112,17 +124,12 @@ traverse(uint32          idx,
           continue;
         }      
 
-        //  Apply to the rest of the positions, after skipping overlaps
-        //  refIdx in overlaps should remain as they were
-        //  as we are using ref allele at these sites anyway
-        delta = strlen(hap) - refLenList.at(idx);
         //  fprintf(stderr, "[ DEBUG ] :: Shift idxs from %u. : hap = %d\n", idx + 1, j);
         for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
           refIdxList.at(i) += delta;
+					//  fprintf(stderr, "[ DEBUG ] :: refIdxList.at(%u) + %d = %d \n", i, delta, refIdxList.at(i));
         }
 
-        //  Change refLen
-        refLenList.at(idx) = strlen(hap);
       }
 
       //  Traverse
@@ -353,26 +360,26 @@ varMers(dnaSeqFile       *sfile,
 
       //  load original sequence from rStart to rEnd
       if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        //  fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
         return;
       }
-      // DEBUG  fprintf(stderr, "%s\n", refTemplate);
+      // DEBUG			fprintf(stderr, "%s\n", refTemplate);
        
       //  load mapPosHap
-      // fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
+      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
       for (int i = 0; i < gts->size(); i++) {
          gt = gts->at(i);
          refIdxList.push_back(gt->_pos - rStart);
          refLenList.push_back(gt->_refLen);
 
-         // fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
+         //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
          //  add alleles. alleles.at(0) is always the ref allele
          mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
       }
-      // fprintf(stderr, "\n");
+      //  fprintf(stderr, "\n");
 
 			if ( refIdxList.size() > 15 ) {
-				fprintf(stderr, "PANIC : This combination has too many variants ( > 15 ) to consider.\n");
+				fprintf(stderr, "PANIC : This combination has too many variants ( found %lu > 15 ) to consider.\n", gts->size());
 				fprintf(stderr, "  Skipping this region. Consider filter the vcf before proceeding.\n");
 				fprintf(stderr, "  Combination skipped includes variants in %s:%u-%u\n\n", seq.name(), rStart, rEnd);
 				continue;
