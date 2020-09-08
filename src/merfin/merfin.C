@@ -29,6 +29,11 @@
 #include <map>
 #include <cmath>
 
+// to read the lookup table
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #define OP_NONE       0
 #define OP_HIST       1
 #define OP_DUMP       2
@@ -159,7 +164,8 @@ dumpKmetric(char               *outName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
-            bool                skipMissings) {
+            bool                skipMissings,
+            map<int, string> pValuesDict) {
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
@@ -174,7 +180,7 @@ dumpKmetric(char               *outName,
 
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK);
         if ( readK == 0 )
           missing++;
 
@@ -197,7 +203,8 @@ void
 histKmetric(char               *outName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
-            merylExactLookup   *alookup) {
+            merylExactLookup   *alookup,
+            map<int, string> pValuesDict) {
 
   dnaSeq seq;
   double asmK;
@@ -228,7 +235,7 @@ histKmetric(char               *outName,
     while (kiter.nextBase()) {
       asmT++;
       if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK);
 
         if ( readK == 0 ) {
           missing++;
@@ -271,7 +278,9 @@ varMers(dnaSeqFile       *sfile,
         vcfFile          *vfile,
         merylExactLookup *rlookup,
         merylExactLookup *alookup,
-        char             *out) {
+        char             *out,
+        map<int, string> pValuesDict
+        ) {
 
   //  output file
   compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
@@ -393,17 +402,16 @@ varMers(dnaSeqFile       *sfile,
       //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
           
       //  score each combination
-      seqMer->score(rlookup, alookup);
+      seqMer->score(rlookup, alookup, pValuesDict);
 
       //  print to debug
       for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t",
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
           seq.name(),
           rStart,
           rEnd,
           seqMer->seqs.at(idx).c_str(), //  seq
-          seqMer->numMs.at(idx),	//  missing
           seqMer->getMinAbsK(idx),
           seqMer->getMaxAbsK(idx),
           seqMer->getAvgAbsK(idx),
@@ -427,9 +435,10 @@ varMers(dnaSeqFile       *sfile,
             }
           }
         }
+
         fprintf(oDebug->file(), "\n");
         fflush(oDebug->file());
-      }
+      }      
 
       // generate vcfs
       fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
@@ -438,14 +447,15 @@ varMers(dnaSeqFile       *sfile,
   }
 }
 
-
 int
 main(int argc, char **argv) {
-  char           *seqName     = NULL;
-  char           *vcfName     = NULL;
-  char           *outName     = NULL;
-  char           *seqDBname   = NULL;
-  char           *readDBname  = NULL;
+
+  char           *seqName       = NULL;
+  char           *vcfName       = NULL;
+  char           *outName       = NULL;
+  char           *seqDBname     = NULL;
+  char           *readDBname    = NULL;
+  char           *pLookupTable  = NULL;
 
   uint64          minV        = 0;
   uint64          maxV        = UINT64_MAX;
@@ -470,6 +480,9 @@ main(int argc, char **argv) {
 
     } else if (strcmp(argv[arg], "-peak") == 0) {
       peak = strtouint64(argv[++arg]);
+      
+    } else if (strcmp(argv[arg], "-pvalues") == 0) {
+      pLookupTable = argv[++arg];
 
     } else if (strcmp(argv[arg], "-vcf") == 0) {
       vcfName = argv[++arg];
@@ -530,6 +543,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "         -seqmers  <seq.meryl>   \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
+    fprintf(stderr, "         -pvalues     <lookup_table>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
     fprintf(stderr, "  Predict the kmer from <input.vcf> given sequence <seq.fasta>\n");
@@ -605,6 +619,34 @@ main(int argc, char **argv) {
 
   omp_set_num_threads(threads);
 
+  //  Read p-values lookup table for 1-4 copy kmers.
+
+	map<int, string>       pValuesDict;
+	string temp_str;
+	int counter = 0;
+
+	ifstream inputFile(pLookupTable);
+
+	if(inputFile.fail()){
+		fprintf(stderr, "Error: failed to locate lookup table!\n");
+		exit (EXIT_FAILURE);
+	}
+
+	while (!inputFile.eof())
+	{
+		inputFile >> temp_str;
+
+		pValuesDict.insert(make_pair(counter,temp_str));
+		counter++;
+	}
+	
+	fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, pValuesDict.size());
+
+	if (!inputFile.eof()) {
+		cout << "Error: couldn't read lookup table!\n";
+		exit (EXIT_FAILURE);
+	}
+
   //  Open read kmers, build a lookup table.
 
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
@@ -640,12 +682,13 @@ main(int argc, char **argv) {
   //  Check report type
   if (reportType == OP_HIST) {
     fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", outName);
-    histKmetric(outName, seqFile, readLookup, asmLookup);
+    histKmetric(outName, seqFile, readLookup, asmLookup, pValuesDict);
   }
   if (reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
-    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing);
+    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing, pValuesDict);
   }
+  
   if (reportType == OP_VAR_MER) {
 
     //  Open vcf file
@@ -657,7 +700,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName);
+    varMers(seqFile, inVcf, readLookup, asmLookup, outName, pValuesDict);
 
     delete inVcf;
   }
