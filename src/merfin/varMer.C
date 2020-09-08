@@ -87,10 +87,10 @@ varMer::getKmetric(
   
   fprintf(stderr, "AsmK: '%f'\n", asmK);
   
-  if ( asmK > readK ) {
+  if ( asmK >= readK ) {
     kMetric = ((asmK - readK) / asmK) * pValue;
-  } else { // readK >= asmK
-    kMetric = ((readK - asmK) / readK) * pValue;
+  } else { // readK > asmK
+    kMetric = 1 - ((readK - asmK) / readK) * pValue;
   }
   fprintf(stderr, "kMetric: '%f'\n", kMetric);
 
