@@ -172,6 +172,7 @@ dumpKmetric(char               *outName,
   dnaSeq seq;
   double asmK;
   double readK;
+  double pValue;
   double kMetric;
   uint64 missing = 0;
 
@@ -180,7 +181,7 @@ dumpKmetric(char               *outName,
 
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK);
+        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK, pValue);
         if ( readK == 0 )
           missing++;
 
@@ -209,6 +210,7 @@ histKmetric(char               *outName,
   dnaSeq seq;
   double asmK;
   double readK;
+  double pValue;
   double kMetric;
 
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
@@ -235,7 +237,7 @@ histKmetric(char               *outName,
     while (kiter.nextBase()) {
       asmT++;
       if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK);
+        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK, pValue);
 
         if ( readK == 0 ) {
           missing++;

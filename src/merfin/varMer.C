@@ -28,47 +28,72 @@
 #include <map>
 #include <cmath>
 #include <algorithm>
+#include <sstream>
 
 uint64 varMer::peak = 0;
 
 double
-varMer::getKmetric(merylExactLookup   *rlookup,
-           merylExactLookup   *alookup,
+varMer::getKmetric(
+		   merylExactLookup    *rlookup,
+           merylExactLookup    *alookup,
            kmer                fmer,
            kmer                rmer,
-           double             &readK,
-           double             &asmK ) {
+           map<int, string>    pValuesDict,
+           double              &readK,
+           double              &asmK,
+           double 			   &pValue
+    		) {
 
   uint64 fValue = 0;
   uint64 rValue = 0;
+  uint64 tValue = 0;
   double kMetric;
 
   rlookup->exists(fmer, fValue);
   rlookup->exists(rmer, rValue);
+  
+  tValue = fValue + rValue;
+  
+  fprintf(stderr, "tValue: '%lu'\n", tValue);
 
-  readK = (double) (fValue + rValue) / peak;
+  if (0 < tValue && tValue < pValuesDict.size()) {
 
-  if (0 < readK && readK < 1) {
-     readK = 1;
+    fprintf(stderr, "pValuesDict.at: '%s'\n", pValuesDict.at(tValue).c_str());
+  
+    std::string s = pValuesDict.at(tValue).c_str();
+    std::string delimiter = ",";
+    readK = stod(s.substr(0, s.find(delimiter)));
+    pValue = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
+
   } else {
-     readK = round(readK);
+  
+  	pValue = (double) 1;
+    readK = round((double) tValue / peak);
+
   }
+
+	fprintf(stderr, "pValue: '%f'\n", pValue);
+	fprintf(stderr, "ReadK: '%f'\n", readK);
 
   fValue = 0;
   rValue = 0;
+  
   alookup->exists(fmer, fValue);
   alookup->exists(rmer, rValue);
+  
+  tValue = fValue + rValue;
 
-  asmK  = (double) (fValue + rValue);
-
-  if ( readK == 0 ) {
-    kMetric = 0;
-  } else if ( asmK > readK ) {
-    kMetric = asmK / readK - 1;
-    kMetric = kMetric * -1;
-  } else { // readK > asmK
-    kMetric = readK / asmK - 1;
+  asmK  = (double) tValue;
+  
+  fprintf(stderr, "AsmK: '%f'\n", asmK);
+  
+  if ( asmK > readK ) {
+    kMetric = ((asmK - readK) / asmK) * pValue;
+  } else { // readK >= asmK
+    kMetric = ((readK - asmK) / readK) * pValue;
   }
+  fprintf(stderr, "kMetric: '%f'\n", kMetric);
+
   return kMetric;
 }
 
@@ -87,13 +112,17 @@ varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, v
 }
 
 void
-varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
+varMer::score(
+			  merylExactLookup *rlookup,
+			  merylExactLookup *alookup,
+			  map<int, string> pValuesDict
+			  ) {
 
   //  iterate through each base and get kmer
-  uint32 numM;  // num. missing kmers
   string seq;
   double readK;
   double asmK;
+  double pValue;
   double kMetric;
   vector<double> m_ks;
 
@@ -101,9 +130,8 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 
   //  get scores at each kmer pos and minimum read multiplicity
   for ( int ii = 0; ii < seqs.size(); ii++ ) {
-    numM  = 0;
 
-    seq    = seqs.at(ii);
+    seq = seqs.at(ii);
     m_ks.clear();
     // fprintf(stderr, "%s:%u-%u\t%s", posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
 
@@ -113,10 +141,11 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
     while (kiter.nextBase()) {
       readK = 0;
       asmK  = 0;
+      pValue = 0;
 
       if (kiter.isValid()) {
         //  we only need readK and asmK, no need to get the kMetric here yet
-        getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+        getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), pValuesDict, readK, asmK, pValue);
       }
 
       //  is the idx anywhere close to idxPath?
@@ -131,17 +160,11 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
         }
       }
 
-      //  re-define k* given rounded readK and asmK, in absolute values
-      if (readK == 0) {
-        kMetric = -1;  // use 0 if we are using non-abs k*
-        numM++;
-
-      } else if (readK > asmK) {
-        kMetric = readK / asmK - 1;
-
-      } else {
-        kMetric = asmK  / readK - 1;
-      }
+	  if ( asmK > readK ) {
+		kMetric = ((asmK - readK) / asmK) * pValue;
+	  } else { // readK >= asmK
+		kMetric = ((readK - asmK) / readK) * pValue;
+	  }
 
       m_ks.push_back(kMetric);
       // fprintf(stderr, "\tidx:%u Kr:%.3f Ka:%.0f K*:%.3f", idx, readK, asmK, kMetric);
@@ -149,7 +172,6 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
       idx++;
     }
 
-    numMs.push_back(numM);
     kstrs.push_back(m_ks);
 
     // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
@@ -163,64 +185,31 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 string
 varMer::bestVariant() {
 
-  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
-  vector<int> idxs;
+    for ( int i = 0; i < kstrs.size(); i++ ) {
 
-  for ( int ii = 0; ii < numMs.size(); ii++ ) {
-    //  ignore when all kmers are 'missings'
-    if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
-
-    //  found a smaller numMissing
-    if ( numMs.at(ii) < numMissing ) {
-      numMissing = numMs.at(ii);
-      idxs.clear();
-      idxs.push_back(ii);
-
-    } else if ( numMs.at(ii) == numMissing ) {
-      //  has the same numMissing
-      idxs.push_back(ii);
+      avgKs.insert(pair<double, int>(getAvgAbsK(i), i));
       
-    } // else : ignore
-  }
-
-  //  ignore if all kmers creats only missings
-  if ( numMissing == UINT32_MAX ) return "";
-
-  //  only one combination has the minimum num. of missings
-  if ( idxs.size() == 1 ) {
-    // get idx of the combination
-    int idx = idxs.at(0);
-
-    // make a vcf record and return
-    return getHomRecord(idx);
-
-  } else if ( idxs.size() > 1) {
-    // found multiple combination equally having the minimum missing kmers.
-    // sort by the Avg. Absolute K* closest to 0
-    // and the second best as het
-    for ( int i = 0; i < idxs.size(); i++ ) {
-      int idx = idxs.at(i);
-      avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
     }
-
+    
     multimap<double, int >::iterator it = avgKs.begin();
     double  avgK1 = (*it).first;
     int      idx1 = (*it).second;
     it++;
     double avgK2 = (*it).first;
-    int     idx2 = (*it).second;
+    int     idx2 = (*it).second; 
 
     if ( avgK1 == avgK2 ) {
-      // if equaly scored, chose the longer allele as hap1
+       
+      // if equaly scored, choose the longer allele as hap1
       if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
         return getHetRecord(idx1, idx2);
       } else {
         return getHetRecord(idx2, idx1);
       }
     } else {
+
       return getHomRecord(idx1);
     }
-  }
 
   // no idxs?
   return "";
@@ -273,7 +262,8 @@ varMer::getHetRecord(int idx1, int idx2) {
 }
 
 string
-varMer::getHomRecord(int idx) {
+varMer::getHomRecord(int idx) { 
+
   string records;
   for ( int i = 0; i < gtPaths.at(idx).size(); i++) {
     int altIdx = gtPaths.at(idx).at(i);
@@ -303,11 +293,9 @@ varMer::getMinAbsK(int idx) {
     if ( absK < 0 )  continue;  //  ignore the missings
     if ( absK < minAbsK ) { minAbsK = absK; }
   }
-  //  if all kmers are 'missings'
-  if (minAbsK == DBL_MAX) return -1;
+
   return minAbsK;
 }
-
 
 double
 varMer::getMaxAbsK(int idx) {
@@ -332,17 +320,13 @@ varMer::getAvgAbsK(int idx) {
   double absK;
 
   vector<double> kstr = kstrs.at(idx);
+  
   for (int i = 0; i < kstr.size(); i++) {
     absK = kstr.at(i);
-    if (absK >= 0)
-      sum += absK;
+    sum += absK;
   }
 
-  // no k* >= 0
-  if ( kstr.size() == numMs.at(idx) )
-    return -1;
-  else
-    return sum / ( kstr.size() - numMs.at(idx) );
+  return sum / kstr.size();
 }
 
 double
@@ -356,10 +340,6 @@ varMer::getMedAbsK(int idx) {
     if ( kstr.at(i) >= 0 ) { break; }
   }
 
-  //  no k* >= 0
-  if (i == kstr.size())
-     return -1;
-  else
-    return kstr.at(i + ((kstr.size() - i)/2));
+  return kstr.at(i + ((kstr.size() - i)/2));
 }
 

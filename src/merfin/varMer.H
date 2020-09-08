@@ -40,11 +40,11 @@ public:
   ~varMer();
 
   static double getKmetric(merylExactLookup *rlookup, merylExactLookup *alookup,
-                           kmer fmer, kmer rmer, double &readK, double  &asmK);
+                           kmer fmer, kmer rmer, map<int, string> pValuesDict, double &readK, double  &asmK, double  &pValue);
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup);
+  void score(merylExactLookup *rlookup, merylExactLookup *alookup, map<int, string> pValuesDict);
 
   string  bestVariant();
   string  getHomRecord(int idx);
