@@ -53,12 +53,8 @@ varMer::getKmetric(
   rlookup->exists(rmer, rValue);
   
   tValue = fValue + rValue;
-  
-  fprintf(stderr, "tValue: '%lu'\n", tValue);
 
   if (0 < tValue && tValue < pValuesDict.size()) {
-
-    fprintf(stderr, "pValuesDict.at: '%s'\n", pValuesDict.at(tValue).c_str());
   
     std::string s = pValuesDict.at(tValue).c_str();
     std::string delimiter = ",";
@@ -72,9 +68,6 @@ varMer::getKmetric(
 
   }
 
-	fprintf(stderr, "pValue: '%f'\n", pValue);
-	fprintf(stderr, "ReadK: '%f'\n", readK);
-
   fValue = 0;
   rValue = 0;
   
@@ -85,14 +78,11 @@ varMer::getKmetric(
 
   asmK  = (double) tValue;
   
-  fprintf(stderr, "AsmK: '%f'\n", asmK);
-  
   if ( asmK >= readK ) {
     kMetric = ((asmK - readK) / asmK) * pValue;
   } else { // readK > asmK
     kMetric = 1 - ((readK - asmK) / readK) * pValue;
   }
-  fprintf(stderr, "kMetric: '%f'\n", kMetric);
 
   return kMetric;
 }
@@ -163,7 +153,7 @@ varMer::score(
 	  if ( asmK > readK ) {
 		kMetric = ((asmK - readK) / asmK) * pValue;
 	  } else { // readK >= asmK
-		kMetric = ((readK - asmK) / readK) * pValue;
+		kMetric = 1 - ((readK - asmK) / readK) * pValue;
 	  }
 
       m_ks.push_back(kMetric);

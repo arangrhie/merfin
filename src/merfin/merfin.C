@@ -625,7 +625,7 @@ main(int argc, char **argv) {
 
 	map<int, string>       pValuesDict;
 	string temp_str;
-	int counter = 0;
+	int counter = 1;
 
 	ifstream inputFile(pLookupTable);
 
