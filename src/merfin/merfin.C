@@ -61,13 +61,11 @@ traverse(uint32          idx,
          varMer*         seqMer) {
 
   if (idx < refIdxList.size()) {
-
-    vector<char*> haps = posHaps.at(idx);
-
     // fprintf(stderr, "[ DEBUG ] :: idx = %u | candidate = %s\n", idx, candidate.c_str());
+    vector<char*> haps = posHaps.at(idx);
+    uint32 refLen = refLenList.at(idx);	// Keep refLen so we revert in case there are > 1 ALTs
 
     //  for each haplotype sequence, make a combination
-    //  evaluate excluding the next overlapping idx + 1
     //  j = 0 is always the REF allele
     for (int j = 0; j < haps.size(); j++) {
       path.push_back(j);
@@ -79,26 +77,25 @@ traverse(uint32          idx,
 
       //  Make the replaced ver. Skip if reference allele.
       if ( j > 0) {
+        refLenList.at(idx) = refLen;  // initialize in case it was modified by a previous j
         replaced = replace(candidate, refIdxList.at(idx), refLenList.at(idx), hap);
         //  fprintf(stderr, "[ DEBUG ] :: replaced = %s | refIdxList.at(%u) = %u | refLenList.at(%u) = %u, hap = %s\n", replaced.c_str(), idx, refIdxList.at(idx), idx, refLenList.at(idx), hap);
 
-				//  Apply to the rest of the positions, after skipping overlaps
-				//  refIdx in overlaps should remain as they were
-				//  as we are using ref allele at these sites anyway
-				//  This has to be done *before* skipping as idx changes.
-				delta = strlen(hap) - refLenList.at(idx);
+        //  Apply to the rest of the positions, after skipping overlaps
+        //  refIdx in overlaps should remain as they were as we are using ref allele at these sites anyway
+        //  This has to be done *before* skipping as idx changes.
+        delta = strlen(hap) - refLenList.at(idx);
 
-				//  Affected base right most index due to this replacement
-				uint32 refAffected = refIdxList.at(idx) + refLenList.at(idx);
+        //  Affected base right most index due to this replacement
+        uint32 refAffected = refIdxList.at(idx) + refLenList.at(idx);
 
-				//  Change refLen
-		    refLenList.at(idx) = strlen(hap);
+        //  Change refLen
+        refLenList.at(idx) = strlen(hap);
 
         //  If the next variant overlaps, skip it
-        //  Only skip when hap is not REF
         if (idx + 1 < refIdxList.size()) {
           for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-            //  fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
+             // fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
             if ( refIdxList.at(i) < refAffected ) {
               //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u. skip %u.\n", refIdxList.at(i), refAffected, refIdxList.at(i));
               overlaps = true;
@@ -115,22 +112,35 @@ traverse(uint32          idx,
         //  if this is the end of the list, we are done
         if ( overlaps && idx == refIdxList.size() - 1) {
           seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
-          //  fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d\n", refIdxList.at(idx), replaced.c_str(), j);
+          /******* DEBUG *********
+          fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d , skipped = %d\n", refIdxList.at(idx), replaced.c_str(), j, skipped);
+          fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
+          for (int hh = 0; hh < path.size(); hh++) {
+            fprintf(stderr, "\t%d,", path.at(hh));
+          }
+          fprintf(stderr, "\n");
+          fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
+          for (int hh = 0; hh < refIdxList.size(); hh++) {  fprintf(stderr, "\t%d,", refIdxList.at(hh));  }
+          fprintf(stderr, "\n");
+          fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
+          for (int hh = 0; hh < refLenList.size(); hh++) {  fprintf(stderr, "\t%d,", refLenList.at(hh));  }
+          fprintf(stderr, "\n\n");
+          ************************/
           for (int k = 0; k < skipped; k++) {
             path.pop_back();
-          //  fprintf(stderr, "[ DEBUG ] :: Pop! idx = %u\n", idx);
+            idx--;
+            //  fprintf(stderr, "[ DEBUG ] :: Pop! idx = %u\n", idx);
           }
           path.pop_back();  // pop the current j
           continue;
-        }      
+        } 
 
-        //  fprintf(stderr, "[ DEBUG ] :: Shift idxs from %u. : hap = %d\n", idx + 1, j);
         for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
           refIdxList.at(i) += delta;
-					//  fprintf(stderr, "[ DEBUG ] :: refIdxList.at(%u) + %d = %d \n", i, delta, refIdxList.at(i));
+          //  fprintf(stderr, "[ DEBUG ] :: Shift refIdxList.at(%u) + %d = %d \n", i, delta, refIdxList.at(i));
         }
 
-      }
+      } // Done with what needs to be done with ALT
 
       //  Traverse
       replaced = traverse(idx + 1, refIdxList, refLenList, posHaps, replaced, path, seqMer);
@@ -138,19 +148,43 @@ traverse(uint32          idx,
       //  Only do something when all nodes are visited
       if (idx == refIdxList.size() - 1) {
         seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
-        //  fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
+        /********* DEBUG **********
+          fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
+          fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
+          for (int hh = 0; hh < path.size(); hh++) {
+          fprintf(stderr, "\t%d,", path.at(hh));
+          }
+          fprintf(stderr, "\n");
+          fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
+          for (int hh = 0; hh < refIdxList.size(); hh++) {	fprintf(stderr, "\t%d,", refIdxList.at(hh));	}
+          fprintf(stderr, "\n");
+          fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
+          for (int hh = 0; hh < refLenList.size(); hh++) {	fprintf(stderr, "\t%d,", refLenList.at(hh));	}
+          fprintf(stderr, "\n");
+         ***************************/
       }
 
-      if ( skipped > 0 ) {
+      //  fprintf(stderr, "[ DEBUG ] :: idx = %u\n", idx);
+      if ( idx + 1 < refIdxList.size()) {
+        for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
+          refIdxList.at(i) -= delta;
+          //  fprintf(stderr, "[ DEBUG ] :: Shift back refIdxList.at(%u) - %d = %d \n", i, delta, refIdxList.at(i));
+        }
+      }
+
+      if ( skipped > 0 ) {  // put the idx and skipped back
         for (int k = 0; k < skipped; k++) {
           //  fprintf(stderr, "[ DEBUG ] :: Pop! %d\n", k);
           path.pop_back();
+          idx--;
         }
       }
+
       path.pop_back();  // pop the current j
+      //  fprintf(stderr, "[ DEBUG ] :: End of idx = %u | j = %d\n\n", idx, j);
     }
   }
-  // idx--;
+  idx--;
   return candidate;
 }
 
@@ -316,7 +350,6 @@ varMers(dnaSeqFile       *sfile,
   vector<uint32> refIdxList;
   vector<uint32> refLenList;
   map<int, vector<char*> > mapPosHap;
-  vector<char*>   haps;
   vector<int>     path;
 
   uint64   varMerId = 0;;
@@ -349,13 +382,12 @@ varMers(dnaSeqFile       *sfile,
       if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
       else { rEnd = seq.length(); }
 
-      //  fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
+      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
 
       gts    = posGt->_gts;
       refIdxList.clear();
       refLenList.clear();
       path.clear();
-      // haps.clear();
       mapPosHap.clear();
 
       //  load original sequence from rStart to rEnd
@@ -378,12 +410,10 @@ varMers(dnaSeqFile       *sfile,
       }
       //  fprintf(stderr, "\n");
 
-			if ( refIdxList.size() > 15 ) {
-				fprintf(stderr, "PANIC : This combination has too many variants ( found %lu > 15 ) to consider.\n", gts->size());
-				fprintf(stderr, "  Skipping this region. Consider filter the vcf before proceeding.\n");
-				fprintf(stderr, "  Combination skipped includes variants in %s:%u-%u\n\n", seq.name(), rStart, rEnd);
-				continue;
-			}
+      if ( refIdxList.size() > 15 ) {
+        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > 15 ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size());
+        continue;
+      }
 
       varMer* seqMer = new varMer(posGt);
 
@@ -391,9 +421,11 @@ varMers(dnaSeqFile       *sfile,
       //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
       traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
       //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
-          
+
       //  score each combination
+      //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
       seqMer->score(rlookup, alookup);
+      //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
 
       //  print to debug
       for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
