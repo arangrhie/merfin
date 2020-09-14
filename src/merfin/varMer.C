@@ -105,7 +105,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 
     seq    = seqs.at(ii);
     m_ks.clear();
-    // fprintf(stderr, "%s:%u-%u\t%s", posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
+    //  fprintf(stderr, "\n[ DEBUG ]:: score %d th combination :: %s:%u-%u\t%s\n", ii, posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
 
     idx = 0;
 
@@ -116,20 +116,24 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 
       if (kiter.isValid()) {
         //  we only need readK and asmK, no need to get the kMetric here yet
+				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
         getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
       }
 
-      //  is the idx anywhere close to idxPath?
+      //  fprintf(stderr, "[ DEBUG ] :: is the idx a newly introduced kmer? Check the idx (%u) falls in any of the %lu idxPaths.at(%d)\n", idx, idxPaths.at(ii).size(), ii);
+      //  fprintf(stderr, "[ DEBUG ] :: size of idxPaths.at(%d)=%lu | lenPaths.at(%d)=%lu | gtPath.at(%d)=%lu\n", ii, idxPaths.at(ii).size(), ii, lenPaths.at(ii).size(), ii, gtPaths.at(ii).size());
       for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
         uint32 idxPath = idxPaths.at(ii).at(jj);
         uint32 lenPath = lenPaths.at(ii).at(jj);
         int    gtPath  = gtPaths.at(ii).at(jj);
-        // fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
+        //  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
         if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
           asmK++; // +1 as we are introducing a new kmer
           break;  // add only once
         }
       }
+			//  fprintf(stderr, "\n");
 
       //  re-define k* given rounded readK and asmK, in absolute values
       if (readK == 0) {
@@ -144,7 +148,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
       }
 
       m_ks.push_back(kMetric);
-      // fprintf(stderr, "\tidx:%u Kr:%.3f Ka:%.0f K*:%.3f", idx, readK, asmK, kMetric);
+      // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
 
       idx++;
     }
@@ -154,7 +158,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
 
     // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
 
-    // fprintf(stderr, "\n");
+    //  fprintf(stderr, "\n");
   }
   return;
 }
