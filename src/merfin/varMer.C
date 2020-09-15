@@ -214,7 +214,10 @@ varMer::bestVariant() {
     double avgK2 = (*it).first;
     int     idx2 = (*it).second;
 
-    if ( avgK1 == avgK2 ) {
+    double kDiff = avgK1 - avgK2;
+    if ( kDiff < 0 ) kDiff *= -1;
+
+    if ( avgK1 == avgK2 || kDiff < 0.05 ) {
       // if equaly scored, chose the longer allele as hap1
       if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
         return getHetRecord(idx1, idx2);
