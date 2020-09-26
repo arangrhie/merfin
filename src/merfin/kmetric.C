@@ -94,7 +94,7 @@ getKmetricProb(
   } else {
   
   	prob = (double) 1;
-    readK = round((double) prob / peak);
+    readK = round((double) tValue / peak);
 
   }
 
