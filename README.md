@@ -21,7 +21,7 @@ Merfin can be used to assess collapsed or duplicated region of the assembly (-hi
 
 In all cases a haploid peak estimate must be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
 
-Optionally, a custom table of probabilities can be used as input (-lookup), also generated using the script under `scripts/genomescope`.
+Optionally, a custom table of probabilities can be used as input (-lookup), also generated using the script under `scripts/genomescope`. This is still experimental.
 
 Two set of similar scripts are available to run Merfin on a slurm cluster under `scripts/parallel1` and `scripts/parallel2`.
 

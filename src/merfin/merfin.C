@@ -669,8 +669,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "         -lookup     <lookup_table>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
-    fprintf(stderr, "  Predict the kmer from <input.vcf> given sequence <seq.fasta>\n");
-    fprintf(stderr, "  and lookup the k-mer multiplicity from sequence and reads.\n");
+    fprintf(stderr, "  Predict the kmer consequences of variant calls <input.vcf> given the consensus sequence <seq.fasta>\n");
+    fprintf(stderr, "  and lookup the k-mer multiplicity in the consensus sequence <seq.meryl> and in the reads <read.meryl>.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Input -sequence and -vcf files can be FASTA or FASTQ; uncompressed, gz, bz2 or xz compressed\n");
     fprintf(stderr, "\n");
@@ -678,13 +678,15 @@ main(int argc, char **argv) {
     fprintf(stderr, "  requires a new database to be constructed using meryl.\n");
     fprintf(stderr, "    -min   m    Ignore kmers with value below m\n");
     fprintf(stderr, "    -max   m    Ignore kmers with value above m\n");
-    fprintf(stderr, "    -threads t  Number of threads to use when constructing lookup table.\n");
+    fprintf(stderr, "    -threads t  Multithreading for meryl lookup table construction, dump and hist.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Memory usage can be limited, within reason, by sacrificing kmer lookup\n");
     fprintf(stderr, "  speed.  If the lookup table requires more memory than allowed, the program\n");
     fprintf(stderr, "  exits with an error.\n");
     fprintf(stderr, "    -memory1 m   Don't use more than m GB memory for loading seqmers\n");
     fprintf(stderr, "    -memory2 m   Don't use more than m GB memory for loading readmers\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    -lookup optional input vector of probabilities.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Exactly one report type must be specified.\n");
     fprintf(stderr, "\n\n");
@@ -746,7 +748,7 @@ main(int argc, char **argv) {
 
 	     //  Read probabilities lookup table for 1-4 copy kmers.
 
-		int it = 1;
+		int it = 0;
 		int r;
 		double p;
 
@@ -776,7 +778,7 @@ main(int argc, char **argv) {
 			r = (int) stod(s.substr(0, s.find(delimiter)));
 			p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
 			
-			fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it, r, p);
+			fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it+1, r, p);
 
 			it++;
 		}
