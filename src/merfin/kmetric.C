@@ -88,7 +88,7 @@ getKmetricProb(
   
     std::string s = copyKmerDict[tValue];
     std::string delimiter = ",";
-    readK = stod(s.substr(0, s.find(delimiter)));
+    readK = (int) stod(s.substr(0, s.find(delimiter)));
     prob = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
 
   } else {

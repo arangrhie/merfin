@@ -266,19 +266,18 @@ dumpKmetric(char               *outName,
 		}
 		  }
 		}
-	#pragma omp ordered
-	{
-		tot_missing+=missing;
-		#pragma omp flush(tot_missing)
-		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
-				 seq.name(),
-				 missing,
-				 tot_missing,
-				 tot
-				 );
-	}		
+		#pragma omp ordered
+		{
+			tot_missing+=missing;
+			#pragma omp flush(tot_missing)
+			fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+					 seq.name(),
+					 missing,
+					 tot_missing,
+					 tot
+					 );
+		}		
 	  }
-  fprintf(stderr, "\nK-mers not found in reads: %lu\n", tot_missing);
 
 }
 
@@ -296,6 +295,7 @@ histKmetric(char               *outName,
   double readK;
   double kMetric;
   uint64 tot_missing = 0;
+  uint64 tot_kasm = 0;
   uint64 fValue = 0;
   uint64 rValue = 0;
   kmerIterator kiter;
@@ -319,7 +319,6 @@ histKmetric(char               *outName,
   uint64   missing  = 0;			// missing kmers (0) 
   double   roundedReadK = 0;
   double   overcpy  = 0;
-  uint64 tot = 0;
 
   for (uint64 ii = 0; ii < histMax; ii++) {
     overHist[ii] = 0;
@@ -345,11 +344,11 @@ histKmetric(char               *outName,
     
     kmerIterator kiter(seq.bases(), seq.length());
     uint64 missing = 0;
-    uint64 tot = 0;
+    uint64 kasm = 0;
 
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
-		tot++;
+		kasm++;
         kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
 
 			if ( readK == 0 ) {
@@ -367,12 +366,13 @@ histKmetric(char               *outName,
 	#pragma omp ordered
 	{
 		tot_missing+=missing;
-		#pragma omp flush(tot_missing)
+		tot_kasm+=kasm;
+		#pragma omp flush(tot_missing,tot_kasm)
 		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
 				 seq.name(),
 				 missing,
 				 tot_missing,
-				 tot
+				 kasm
 				 );
 	}
   }
@@ -387,12 +387,12 @@ histKmetric(char               *outName,
   fprintf(stderr, "\n");
   fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
   fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", overcpy);
-  fprintf(stderr, "K-mers found in the assembly: %lu\n", tot);
-  double err = 1 - pow((1-((double) tot_missing) / tot), (double) 1/21);
+  fprintf(stderr, "K-mers found in the assembly: %lu\n", tot_kasm);
+  double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/21);
   double qv = -10*log10(err);
   fprintf(stderr, "Merqury  QV: %.2f\n", qv);
   tot_missing += (uint64) ceil(overcpy);
-  err = 1 - pow((1-((double) tot_missing) / tot), (double) 1/21);
+  err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/21);
   qv = -10*log10(err);
   fprintf(stderr, "Adjusted QV: %.2f\n", qv);
   fprintf(stderr, "*** Note this QV is only valid if -seqmer was generated with -sequence ***\n\n");
