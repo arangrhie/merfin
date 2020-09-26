@@ -1,10 +1,10 @@
 # Merfin
 
-Assembly evaluation and improved consensus accuracy via k-mer-based variant calling validation.
+k-mer-based assembly and variant calling evaluation for improved consensus accuracy.
 
 ## Installation
 
-* Required: git v.2.12 or higher, OMP (parallelization)
+* Required: git v.2.12 or higher, OMP (for parallelization)
 
 ```
 git clone https://github.com/arangrhie/merfin.git
@@ -17,11 +17,11 @@ make -j 12
 
 ## Running Merfin
 
-Merfin can be used to assess collapsed or duplicated region of the assembly (-hist, -dump) or to evaluate variant calls (-vmer). QV estimates for all scaffolds will also be generated.
+Merfin can be used to assess collapsed or duplicated region of the assembly (-hist, -dump) or to evaluate variant calls (-vmer). QV estimates for all scaffolds will also be generated with -hist and -dump.
 
-In all cases a haploid peak estimate should be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
+In all cases a haploid peak estimate must be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
 
-Optionally, a custom table of probabilities can be used as input (-lookup), also generate using the script under `scripts/genomescope`.
+Optionally, a custom table of probabilities can be used as input (-lookup), also generated using the script under `scripts/genomescope`.
 
 Two set of similar scripts are available to run Merfin on a slurm cluster under `scripts/parallel1` and `scripts/parallel2`.
 
@@ -54,7 +54,8 @@ usage: ./merfin <report-type> \
   Memory usage can be limited, within reason, by sacrificing kmer lookup
   speed.  If the lookup table requires more memory than allowed, the program
   exits with an error.
-    -memory m   Don't use more than m GB memory
+  -memory1 m   Don't use more than m GB memory for loading seqmers
+  -memory2 m   Don't use more than m GB memory for loading readmers
     
   -lookup optional input vector of probabilities.
 
