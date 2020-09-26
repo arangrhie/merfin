@@ -1,10 +1,10 @@
 # Merfin
 
-Evaluate genome assembly and variant calls with k*
+Assembly evaluation and improved consensus accuracy via k-mer-based variant calling validation.
 
 ## Installation
 
-* Required: git v.2.12 or higher
+* Required: git v.2.12 or higher, OMP (parallelization)
 
 ```
 git clone https://github.com/arangrhie/merfin.git
@@ -17,7 +17,15 @@ make -j 12
 
 ## Running Merfin
 
-Merfin is still under active development. Currently, `-hist` and `-dump` is feature complete, but will be updated in the near future.
+Merfin can be used to assess collapsed or duplicated region of the assembly (-hist, -dump) or to evaluate variant calls (-vmer). QV estimates for all scaffolds will also be generated.
+
+In all cases a haploid peak estimate should be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
+
+Optionally, a custom table of probabilities can be used as input (-lookup), also generate using the script under `scripts/genomescope`.
+
+Two set of similar scripts are available to run Merfin on a slurm cluster under `scripts/parallel1` and `scripts/parallel2`.
+
+Merfin is still under active development. Feel free to reach out to us if you have any question.
 
 ```
 cd ../build/bin/
@@ -28,11 +36,12 @@ usage: ./merfin <report-type> \
          -seqmers  <seq.meryl>   \
          -readmers <read.meryl>    \
          -peak     <haploid_peak>  \
+		 -lookup     <lookup_table> \
          -vcf      <input.vcf>     \
          -output   <output>        
 
-  Predict the kmer from <input.vcf> given sequence <seq.fasta>
-  and lookup the k-mer multiplicity from sequence and reads.
+  Predict the kmer consequences of variant calls <input.vcf> given the consensus sequence <seq.fasta>
+  and lookup the k-mer multiplicity in the consensus sequence <seq.meryl> and in the reads <read.meryl>.
 
   Input -sequence and -vcf files can be FASTA or FASTQ; uncompressed, gz, bz2 or xz compressed
 
@@ -40,15 +49,16 @@ usage: ./merfin <report-type> \
   requires a new database to be constructed using meryl.
     -min   m    Ignore kmers with value below m
     -max   m    Ignore kmers with value above m
-    -threads t  Number of threads to use when constructing lookup table.
+    -threads t  Multithreading for meryl lookup table construction, dump and hist.
 
   Memory usage can be limited, within reason, by sacrificing kmer lookup
   speed.  If the lookup table requires more memory than allowed, the program
   exits with an error.
     -memory m   Don't use more than m GB memory
+    
+  -lookup optional input vector of probabilities.
 
   Exactly one report type must be specified.
-
 
   -hist
    Generate a 0-centered k* histogram for sequences in <input.fasta>.
@@ -57,13 +67,14 @@ usage: ./merfin <report-type> \
    Closer to 0 means the expected and found k-mers are well balenced, 1:1.
    Reports QV at the end, in stderr.
    Required: -sequence, -seqmers, -readmers, -peak, and -output.
+   Optional: -lookup
 
    Output: k* <tab> frequency
-
 
   -dump
    Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.
    Required: -sequence, -seqmers, -readmers, -peak, and -output
+   Optional: -lookup
 
    Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*
       seqName    - name of the sequence this kmer is from
@@ -75,6 +86,7 @@ usage: ./merfin <report-type> \
   -vmer (experimental)
    Score each variant, or variants within distance k and its combination by k*.
    Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output
+   Optional: -lookup
 
    Output:
     <output>.debug : some useful info for debugging.
