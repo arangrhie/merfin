@@ -1,5 +1,5 @@
 TARGET   := merfin
-SOURCES  := merfin.C vcf.C varMer.C
+SOURCES  := merfin.C vcf.C varMer.C kmetric.C
 
 SRC_INCDIRS  := . ../utility/src/utility
 

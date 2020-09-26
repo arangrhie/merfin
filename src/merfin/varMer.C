@@ -29,48 +29,8 @@
 #include <cmath>
 #include <algorithm>
 
-uint64 varMer::peak = 0;
-
-double
-varMer::getKmetric(merylExactLookup   *rlookup,
-           merylExactLookup   *alookup,
-           kmer                fmer,
-           kmer                rmer,
-           double             &readK,
-           double             &asmK ) {
-
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  double kMetric;
-
-  rlookup->exists(fmer, fValue);
-  rlookup->exists(rmer, rValue);
-
-  readK = (double) (fValue + rValue) / peak;
-
-  if (0 < readK && readK < 1) {
-     readK = 1;
-  } else {
-     readK = round(readK);
-  }
-
-  fValue = 0;
-  rValue = 0;
-  alookup->exists(fmer, fValue);
-  alookup->exists(rmer, rValue);
-
-  asmK  = (double) (fValue + rValue);
-
-  if ( readK == 0 ) {
-    kMetric = 0;
-  } else if ( asmK > readK ) {
-    kMetric = asmK / readK - 1;
-    kMetric = kMetric * -1;
-  } else { // readK > asmK
-    kMetric = readK / asmK - 1;
-  }
-  return kMetric;
-}
+uint64 
+varMer::peak = 0;
 
 void
 varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
@@ -92,10 +52,20 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
   //  iterate through each base and get kmer
   uint32 numM;  // num. missing kmers
   string seq;
+  vector<string> copyKmerDict;
+  double prob;
   double readK;
   double asmK;
   double kMetric;
   vector<double> m_ks;
+  
+  func_t getKmetric = &getKmetricDef;
+
+  if (!copyKmerDict.empty()) {
+
+	getKmetric = &getKmetricProb;
+	
+  }
 
   uint32 idx = 0;       // var index in the seqe
 
@@ -117,7 +87,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
       if (kiter.isValid()) {
         //  we only need readK and asmK, no need to get the kMetric here yet
 				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
-        getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+        getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
 				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
       }
 

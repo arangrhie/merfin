@@ -22,12 +22,18 @@
 #include "strings.H"
 #include "files.H"
 #include "vcf.H"
+#include "kmetric.H"
 #include "varMer.H"
 #include "types.H"
 
 #include <vector>
 #include <map>
 #include <cmath>
+
+// to read the lookup table
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #define OP_NONE       0
 #define OP_HIST       1
@@ -193,37 +199,86 @@ dumpKmetric(char               *outName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
-            bool                skipMissings) {
+            bool                skipMissings,
+            vector<string>      copyKmerDict,
+            int                 threads) {
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
   dnaSeq seq;
+  double prob;
   double asmK;
   double readK;
   double kMetric;
-  uint64 missing = 0;
+  uint64 tot_missing = 0;
+  uint64 fValue = 0;
+  uint64 rValue = 0;
+  kmerIterator kiter;
+  
+  func_t getKmetric = &getKmetricDef;
 
-  for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
-    kmerIterator kiter(seq.bases(), seq.length());
+  if (!(copyKmerDict.empty())) {
 
-    while (kiter.nextBase()) {
-      if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
-        if ( readK == 0 )
-          missing++;
-
-        if ( skipMissings )  continue;
-        fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-                 seq.name(),
-                 kiter.position(),
-                 readK,
-                 asmK,
-                 kMetric
-                 );
-      }
-    }
+	getKmetric = &getKmetricProb;
+	
   }
-  fprintf(stderr, "\nK-mers not found in reads: %lu\n", missing);
+  
+  sfile->generateIndex();  
+  int ctgn = sfile->numberOfSequences();
+  
+  fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
+    
+    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) ordered num_threads(threads)
+    for (uint32 seqId=0; seqId<ctgn;seqId++)
+    {
+
+	#pragma omp ordered
+	{
+	#pragma omp critical
+	{
+	sfile->loadSequence(seq);	       
+    }
+    }
+    kmerIterator kiter(seq.bases(), seq.length());
+    uint64 missing = 0;
+    uint64 tot = 0;
+
+		while (kiter.nextBase()) {
+		  if (kiter.isValid() == true) {
+		    tot++;
+			kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+			if ( readK == 0 ){
+			  missing++;
+			}
+
+			if ( skipMissings )  continue;
+			
+		#pragma omp ordered
+		{
+			fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+					 seq.name(),
+					 kiter.position(),
+					 readK,
+					 asmK,
+					 kMetric
+					 );
+	 
+		}
+		  }
+		}
+	#pragma omp ordered
+	{
+		tot_missing+=missing;
+		#pragma omp flush(tot_missing)
+		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+				 seq.name(),
+				 missing,
+				 tot_missing,
+				 tot
+				 );
+	}		
+	  }
+  fprintf(stderr, "\nK-mers not found in reads: %lu\n", tot_missing);
 
 }
 
@@ -231,13 +286,28 @@ void
 histKmetric(char               *outName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
-            merylExactLookup   *alookup) {
+            merylExactLookup   *alookup,
+            vector<string>      copyKmerDict,
+            int                 threads) {
 
   dnaSeq seq;
+  double prob;
   double asmK;
   double readK;
   double kMetric;
+  uint64 tot_missing = 0;
+  uint64 fValue = 0;
+  uint64 rValue = 0;
+  kmerIterator kiter;
+  
+  func_t getKmetric = &getKmetricDef;
 
+  if (!copyKmerDict.empty()) {
+
+	getKmetric = &getKmetricProb;
+	
+  }
+  
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
   compressedFileWriter *k_hist   = new compressedFileWriter(outName);
 
@@ -246,36 +316,65 @@ histKmetric(char               *outName,
   uint64   histMax  = 32 * 1024 * 1024;
   uint64 * overHist = new uint64[histMax];	// positive k* values, overHist[0] = bin 0.0 ~ 0.2
   uint64 * undrHist = new uint64[histMax];	// negative k* values
-  uint64   missing  = 0;			// missing kmers (0)
+  uint64   missing  = 0;			// missing kmers (0) 
   double   roundedReadK = 0;
   double   overcpy  = 0;
-  uint64   asmT     = 0;
+  uint64 tot = 0;
 
   for (uint64 ii = 0; ii < histMax; ii++) {
     overHist[ii] = 0;
     undrHist[ii] = 0;
   }
+  
+  sfile->generateIndex();  
+  int ctgn = sfile->numberOfSequences();
+  
+  fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-  for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
+    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) ordered reduction (+:overcpy) num_threads(threads)
+    for (uint32 seqId=0; seqId<ctgn;seqId++)
+    {
+
+	#pragma omp ordered
+	{
+	#pragma omp critical
+	{
+	sfile->loadSequence(seq);	       
+    }
+    }
+    
     kmerIterator kiter(seq.bases(), seq.length());
+    uint64 missing = 0;
+    uint64 tot = 0;
 
     while (kiter.nextBase()) {
-      asmT++;
       if (kiter.isValid() == true) {
-        kMetric = varMer::getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), readK, asmK);
+		tot++;
+        kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
 
-        if ( readK == 0 ) {
-          missing++;
-        } else if ( readK < asmK ) {
-          undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-          //  TODO: Check if this kmer was already coutned. Only if not,
-          //  overcpy += (asmK - readK)
-          overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
-        } else { // readK > asmK
-          overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
-        }
+			if ( readK == 0 ) {
+			  missing++;
+			} else if ( readK < asmK ) {
+			  undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+			  //  TODO: Check if this kmer was already coutned. Only if not,
+			  //  overcpy += (asmK - readK)
+			  overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
+			} else { // readK > asmK
+			  overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
+			}
       }
     }
+	#pragma omp ordered
+	{
+		tot_missing+=missing;
+		#pragma omp flush(tot_missing)
+		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+				 seq.name(),
+				 missing,
+				 tot_missing,
+				 tot
+				 );
+	}
   }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
@@ -286,14 +385,14 @@ histKmetric(char               *outName,
      if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
   }
   fprintf(stderr, "\n");
-  fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", missing);
+  fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
   fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", overcpy);
-  fprintf(stderr, "K-mers found in assembly: %lu\n", asmT);
-  double err = 1 - pow((1-((double) missing) / asmT), (double) 1/21);
+  fprintf(stderr, "K-mers found in the assembly: %lu\n", tot);
+  double err = 1 - pow((1-((double) tot_missing) / tot), (double) 1/21);
   double qv = -10*log10(err);
   fprintf(stderr, "Merqury  QV: %.2f\n", qv);
-  missing += (uint64) ceil(overcpy);
-  err = 1 - pow((1-((double) missing) / asmT), (double) 1/21);
+  tot_missing += (uint64) ceil(overcpy);
+  err = 1 - pow((1-((double) tot_missing) / tot), (double) 1/21);
   qv = -10*log10(err);
   fprintf(stderr, "Adjusted QV: %.2f\n", qv);
   fprintf(stderr, "*** Note this QV is only valid if -seqmer was generated with -sequence ***\n\n");
@@ -473,22 +572,23 @@ varMers(dnaSeqFile       *sfile,
 
 int
 main(int argc, char **argv) {
-  char           *seqName     = NULL;
-  char           *vcfName     = NULL;
-  char           *outName     = NULL;
-  char           *seqDBname   = NULL;
-  char           *readDBname  = NULL;
+  char           *seqName       = NULL;
+  char           *vcfName       = NULL;
+  char           *outName       = NULL;
+  char           *seqDBname     = NULL;
+  char           *readDBname    = NULL;
+  char           *pLookupTable  = NULL;
 
   uint64          minV        = 0;
   uint64          maxV        = UINT64_MAX;
-  static uint64   peak        = 0;
+  static uint64   ipeak        = 0;
   bool            skipMissing = false;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
   uint32          reportType  = OP_NONE;
 
-  vector<char *>  err;
+  vector<const char *>  err;
   int             arg = 1;
   while (arg < argc) {
     if        (strcmp(argv[arg], "-sequence") == 0) {
@@ -501,7 +601,11 @@ main(int argc, char **argv) {
       readDBname = argv[++arg];
 
     } else if (strcmp(argv[arg], "-peak") == 0) {
-      peak = strtouint64(argv[++arg]);
+      ipeak = strtouint64(argv[++arg]);
+      
+    } else if (strcmp(argv[arg], "-lookup") == 0) {
+
+      pLookupTable = argv[++arg];
 
     } else if (strcmp(argv[arg], "-vcf") == 0) {
       vcfName = argv[++arg];
@@ -551,7 +655,7 @@ main(int argc, char **argv) {
     err.push_back("No sequence meryl database (-seqmers) supplied.\n");
   if (readDBname == NULL)
     err.push_back("No read meryl database (-readmers) supplied.\n");
-  if (peak == 0)
+  if (ipeak == 0)
     err.push_back("Peak=0 or no haploid peak (-peak) supplied.\n");
   if (outName == NULL)
     err.push_back("No output (-output) supplied.\n");
@@ -562,6 +666,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "         -seqmers  <seq.meryl>   \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
+    fprintf(stderr, "         -lookup     <lookup_table>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
     fprintf(stderr, "  Predict the kmer from <input.vcf> given sequence <seq.fasta>\n");
@@ -635,6 +740,56 @@ main(int argc, char **argv) {
     exit(1);
   }
 
+	vector<string> copyKmerDict;
+
+	if (!(pLookupTable == NULL)) {
+
+	     //  Read probabilities lookup table for 1-4 copy kmers.
+
+		int it = 1;
+		int r;
+		double p;
+
+		ifstream inputFile(pLookupTable, std::ios::in | std::ios::binary);
+
+		if(inputFile.fail()){
+			fprintf(stderr, "Error: failed to locate lookup table!\n");
+			exit (EXIT_FAILURE);
+		}
+
+		// test file open   
+		if (inputFile) {        
+		string prob;
+
+		// read the elements in the file into a vector  
+		while ( inputFile >> prob ) {
+			prob.erase(std::remove(prob.begin(), prob.end(), '\n'), prob.end());
+			copyKmerDict.push_back(prob);
+		}
+
+		fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, copyKmerDict.size());
+
+		while (it < copyKmerDict.size())
+		{
+			string s = copyKmerDict[it];
+			std::string delimiter = ",";
+			r = (int) stod(s.substr(0, s.find(delimiter)));
+			p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
+			
+			fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it, r, p);
+
+			it++;
+		}
+		
+		fprintf(stderr, "\n");
+	
+		if (!inputFile.eof()) {
+			cout << "Error: couldn't read lookup table!\n";
+			exit (-1);
+		}
+	  }
+	}
+	
   omp_set_num_threads(threads);
 
   //  Open read kmers, build a lookup table.
@@ -667,16 +822,16 @@ main(int argc, char **argv) {
   fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
   seqFile = new dnaSeqFile(seqName);
 
-  varMer::setPeak(peak);
+  peak = ipeak;
 
   //  Check report type
   if (reportType == OP_HIST) {
     fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", outName);
-    histKmetric(outName, seqFile, readLookup, asmLookup);
+    histKmetric(outName, seqFile, readLookup, asmLookup, copyKmerDict, threads);
   }
   if (reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
-    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing);
+    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing, copyKmerDict, threads);
   }
   if (reportType == OP_VAR_MER) {
 

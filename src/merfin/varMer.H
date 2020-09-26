@@ -21,6 +21,7 @@
 #include "runtime.H"
 #include "types.H"
 #include "kmers.H"
+#include "kmetric.H"
 #include "varMer.H"
 #include <string>
 #include <algorithm>
@@ -38,9 +39,6 @@ public:
     this->posGt = posGt;
   };
   ~varMer();
-
-  static double getKmetric(merylExactLookup *rlookup, merylExactLookup *alookup,
-                           kmer fmer, kmer rmer, double &readK, double  &asmK);
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
