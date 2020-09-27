@@ -40,6 +40,13 @@
 #define OP_DUMP       2
 #define OP_VAR_MER    3
 
+uint64 getIndex(vector<string> v, string K) 
+{ 
+    auto it = find(v.begin(), v.end(), K); 
+    int index = distance(v.begin(), it);  
+    return index;
+} 
+
 char*
 concat(const char *s1, const char *s2) {
   char *result = (char*) malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
@@ -196,14 +203,13 @@ traverse(uint32          idx,
 
 void
 dumpKmetric(char               *outName,
+			char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
             bool                skipMissings,
             vector<string>      copyKmerDict,
             int                 threads) {
-
-  compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
   dnaSeq seq;
   double prob;
@@ -214,6 +220,7 @@ dumpKmetric(char               *outName,
   uint64 fValue = 0;
   uint64 rValue = 0;
   kmerIterator kiter;
+  map<string, uint64> order;
   
   func_t getKmetric = &getKmetricDef;
 
@@ -222,63 +229,90 @@ dumpKmetric(char               *outName,
 	getKmetric = &getKmetricProb;
 	
   }
+
+  compressedFileWriter *k_dump   = new compressedFileWriter(outName);
   
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
-    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) ordered num_threads(threads)
-    for (uint32 seqId=0; seqId<ctgn;seqId++)
+    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
+    for (uint64 seqId=0; seqId<ctgn;seqId++)
     {
 
-	#pragma omp ordered
-	{
 	#pragma omp critical
 	{
-	sfile->loadSequence(seq);	       
+	sfile->loadSequence(seq);      
     }
-    }
+
     kmerIterator kiter(seq.bases(), seq.length());
     uint64 missing = 0;
     uint64 tot = 0;
+    
+	char filename[64];
 
-		while (kiter.nextBase()) {
-		  if (kiter.isValid() == true) {
-		    tot++;
-			kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-			if ( readK == 0 ){
-			  missing++;
-			}
+	FILE *out;
+	sprintf(filename, "/tmp/%lu.dump", seqId);
+	
+	order.insert(pair<string, uint64>(seq.name(), seqId)); 
+	
+	out = fopen(filename, "w");
 
-			if ( skipMissings )  continue;
-			
-		#pragma omp ordered
-		{
-			fprintf(k_dump->file(), "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-					 seq.name(),
-					 kiter.position(),
-					 readK,
-					 asmK,
-					 kMetric
-					 );
-	 
+	while (kiter.nextBase()) {
+	  if (kiter.isValid() == true) {
+		tot++;
+		kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+		if ( readK == 0 ){
+		  missing++;
 		}
-		  }
-		}
-		#pragma omp ordered
-		{
-			tot_missing+=missing;
-			#pragma omp flush(tot_missing)
-			fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
-					 seq.name(),
-					 missing,
-					 tot_missing,
-					 tot
-					 );
-		}		
+
+		if ( skipMissings )  continue;
+
+		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+				 seq.name(),
+				 kiter.position(),
+				 readK,
+				 asmK,
+				 kMetric
+				 );
+
+
 	  }
+	}
+	fclose(out);
+	#pragma omp critical
+	{
+		tot_missing+=missing;
+		#pragma omp flush(tot_missing)
+		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+				 seq.name(),
+				 missing,
+				 tot_missing,
+				 tot
+				 );
+	}		
+  }	
 
+	ofstream ofile(outName, ios::out | ios::app); 
+	char filename[64];
+	
+    dnaSeqFile  *seqFile = NULL;
+    seqFile = new dnaSeqFile(seqName);
+
+    for (uint32 seqId=0; seqFile->loadSequence(seq);seqId++) {
+    
+		sprintf(filename, "/tmp/%lu.dump", order.at(seq.name()));
+		
+		order.erase (seq.name());
+
+		ifstream ifile(filename, ios::in); 
+  
+		ofile << ifile.rdbuf(); 
+		
+		remove(filename);
+
+    }
 }
 
 void
@@ -327,24 +361,24 @@ histKmetric(char               *outName,
   
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
+
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) ordered reduction (+:overcpy) num_threads(threads)
+    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) reduction (+:overcpy) num_threads(threads) schedule(static,1)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
 
-	#pragma omp ordered
-	{
 	#pragma omp critical
 	{
-	sfile->loadSequence(seq);	       
-    }
+	sfile->loadSequence(seq);
     }
     
     kmerIterator kiter(seq.bases(), seq.length());
     uint64 missing = 0;
     uint64 kasm = 0;
+    double err;
+    double qv;
 
     while (kiter.nextBase()) {
       if (kiter.isValid() == true) {
@@ -363,16 +397,22 @@ histKmetric(char               *outName,
 			}
       }
     }
-	#pragma omp ordered
+    
+	#pragma omp critical
 	{
 		tot_missing+=missing;
 		tot_kasm+=kasm;
 		#pragma omp flush(tot_missing,tot_kasm)
-		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+		
+		err = 1 - pow((1-((double) missing) / kasm), (double) 1/21);
+  		qv = -10*log10(err);
+		
+		fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
 				 seq.name(),
 				 missing,
 				 tot_missing,
-				 kasm
+				 kasm,
+				 qv
 				 );
 	}
   }
@@ -833,7 +873,7 @@ main(int argc, char **argv) {
   }
   if (reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
-    dumpKmetric(outName, seqFile, readLookup, asmLookup, skipMissing, copyKmerDict, threads);
+    dumpKmetric(outName, seqName, seqFile, readLookup, asmLookup, skipMissing, copyKmerDict, threads);
   }
   if (reportType == OP_VAR_MER) {
 
