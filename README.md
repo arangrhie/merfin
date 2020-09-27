@@ -19,11 +19,19 @@ make -j 12
 
 Merfin can be used to assess collapsed or duplicated region of the assembly (-hist, -dump) or to evaluate variant calls (-vmer). QV estimates for all scaffolds will also be generated with -hist and -dump.
 
-In all cases a haploid peak estimate must be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
+In all cases a diploid peak estimate must be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
 
 Optionally, a custom table of probabilities can be used as input (-lookup), also generated using the script under `scripts/genomescope`. This is still experimental.
 
-Two set of similar scripts are available to run Merfin on a slurm cluster under `scripts/parallel1` and `scripts/parallel2`.
+The output of -dump can be further converted to .Wig/.bw tracks for visualization on IGV with:
+
+```
+awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep chrom="chr" span=1"};if($3!=0){printf $2+1"\t"$5"\n"}}' $dump_output > $dump_output.Wig
+#Convert to bigWig:
+wigToBigWig $dump_output.Wig $dump_output.bw
+```
+
+Two set of similar scripts for further parallelization on HPC (slurm) are available under `scripts/parallel1` and `scripts/parallel2`.
 
 Merfin is still under active development. Feel free to reach out to us if you have any question.
 
