@@ -221,6 +221,7 @@ dumpKmetric(char               *outName,
   uint64 rValue = 0;
   kmerIterator kiter;
   map<string, uint64> order;
+  string tmp = tmpnam(nullptr);
   
   func_t getKmetric = &getKmetricDef;
 
@@ -253,7 +254,7 @@ dumpKmetric(char               *outName,
 	char filename[64];
 
 	FILE *out;
-	sprintf(filename, "/tmp/%lu.dump", seqId);
+	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
 	
 	order.insert(pair<string, uint64>(seq.name(), seqId)); 
 	
@@ -302,7 +303,7 @@ dumpKmetric(char               *outName,
 
     for (uint32 seqId=0; seqFile->loadSequence(seq);seqId++) {
     
-		sprintf(filename, "/tmp/%lu.dump", order.at(seq.name()));
+		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.name()));
 		
 		order.erase (seq.name());
 
@@ -365,56 +366,70 @@ histKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) reduction (+:overcpy) num_threads(threads) schedule(static,1)
+  #pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
+  {
+    
+    #pragma omp for reduction (+:overcpy) schedule(static,1)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
+		#pragma omp critical
+		{
+		sfile->loadSequence(seq);
+		}
+	
+		kmerIterator kiter(seq.bases(), seq.length());
+		uint64 missing = 0;
+		uint64 kasm = 0;
+		double err;
+		double qv;
+		uint64 * undrHist_pvt = new uint64[histMax];
+		uint64 * overHist_pvt = new uint64[histMax];
 
-	#pragma omp critical
-	{
-	sfile->loadSequence(seq);
-    }
-    
-    kmerIterator kiter(seq.bases(), seq.length());
-    uint64 missing = 0;
-    uint64 kasm = 0;
-    double err;
-    double qv;
+		while (kiter.nextBase()) {
+		  if (kiter.isValid() == true) {
+			kasm++;
+			kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
 
-    while (kiter.nextBase()) {
-      if (kiter.isValid() == true) {
-		kasm++;
-        kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+				if ( readK == 0 ) {
+				  missing++;
+				} else if ( readK < asmK ) {
+				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+				  //  TODO: Check if this kmer was already coutned. Only if not,
+				  //  overcpy += (asmK - readK)
+				  overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
+				} else { // readK > asmK
+				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
+				}
+		  }
+		}
+	
+		#pragma omp critical
+		{
+			tot_missing+=missing;
+			tot_kasm+=kasm;
+			#pragma omp flush(tot_missing,tot_kasm)
 
-			if ( readK == 0 ) {
-			  missing++;
-			} else if ( readK < asmK ) {
-			  undrHist[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-			  //  TODO: Check if this kmer was already coutned. Only if not,
-			  //  overcpy += (asmK - readK)
-			  overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
-			} else { // readK > asmK
-			  overHist[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
-			}
-      }
-    }
-    
-	#pragma omp critical
-	{
-		tot_missing+=missing;
-		tot_kasm+=kasm;
-		#pragma omp flush(tot_missing,tot_kasm)
+        	for(uint64 ii = histMax - 1; ii > 0; ii--) {
+            	undrHist[ii] += undrHist_pvt[ii];
+            }
+            undrHist[0] += undrHist_pvt[0];
+            overHist[0] += overHist_pvt[0];
+            for (uint64 ii = 1; ii < histMax; ii++) {
+            	overHist[ii] += overHist_pvt[ii];
+            }
 		
-		err = 1 - pow((1-((double) missing) / kasm), (double) 1/21);
-  		qv = -10*log10(err);
+			err = 1 - pow((1-((double) missing) / kasm), (double) 1/21);
+			qv = -10*log10(err);
 		
-		fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
-				 seq.name(),
-				 missing,
-				 tot_missing,
-				 kasm,
-				 qv
-				 );
-	}
+			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
+					 seq.name(),
+					 missing,
+					 tot_missing,
+					 kasm,
+					 qv
+					 );
+		}
+	 }
   }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
