@@ -339,6 +339,7 @@ histKmetric(char               *outName,
   uint64 fValue = 0;
   uint64 rValue = 0;
   kmerIterator kiter;
+  uint32 ksize = kmer::merSize();
   
   func_t getKmetric = &getKmetricDef;
 
@@ -423,7 +424,7 @@ histKmetric(char               *outName,
             	overHist[ii] += overHist_pvt[ii];
             }
 		
-			err = 1 - pow((1-((double) missing) / kasm), (double) 1/21);
+			err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
 			qv = -10*log10(err);
 		
 			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
@@ -448,11 +449,11 @@ histKmetric(char               *outName,
   fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
   fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", overcpy);
   fprintf(stderr, "K-mers found in the assembly: %lu\n", tot_kasm);
-  double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/21);
+  double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   double qv = -10*log10(err);
   fprintf(stderr, "Merqury  QV: %.2f\n", qv);
   tot_missing += (uint64) ceil(overcpy);
-  err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/21);
+  err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   qv = -10*log10(err);
   fprintf(stderr, "Adjusted QV: %.2f\n", qv);
   fprintf(stderr, "*** Note this QV is only valid if -seqmer was generated with -sequence ***\n\n");
