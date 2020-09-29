@@ -256,7 +256,12 @@ dumpKmetric(char               *outName,
 	FILE *out;
 	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
 	
-	order.insert(pair<string, uint64>(seq.name(), seqId)); 
+	auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
+	if (!p.second)
+	{
+	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
+	  exit (-1);	  
+	}
 	
 	out = fopen(filename, "w");
 
