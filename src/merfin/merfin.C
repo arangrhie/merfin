@@ -236,6 +236,11 @@ dumpKmetric(char               *outName,
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
   
+  //use at most threads equal to the number of sequences
+  if (threads > ctgn) {
+  	threads = ctgn;
+  }
+  
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
     #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
@@ -368,7 +373,11 @@ histKmetric(char               *outName,
   
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
-
+  
+  //use at most threads equal to the number of sequences
+  if (threads > ctgn) {
+  	threads = ctgn;
+  }
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
