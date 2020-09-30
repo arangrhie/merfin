@@ -506,8 +506,6 @@ varMers(dnaSeqFile       *sfile,
   char     rString[65];
   string   kmer;
   dnaSeq   seq;
-  uint64   fValue = 0;
-  uint64   rValue = 0;
   
   posGT    *posGt;
   gtAllele *gt;
@@ -525,7 +523,7 @@ varMers(dnaSeqFile       *sfile,
 
   uint64   varMerId = 0;;
  
-  // temporal sequence to hold ref bases
+  // temporary sequence to hold ref bases
   char      refTemplate[1024] = "";
 
   for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
@@ -534,9 +532,10 @@ varMers(dnaSeqFile       *sfile,
     fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
 
     //  in case no seq.name() available, ignore this seqName
-    if (mapChrPosGT->find(seqName) == mapChrPosGT->end())
+    if (mapChrPosGT->find(seqName) == mapChrPosGT->end()) {
+      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'\n", seq.name());
       continue;
-
+	}
     //  get chr specific posGTs
     posGTlist = mapChrPosGT->at(seq.name());
 
@@ -638,7 +637,7 @@ varMers(dnaSeqFile       *sfile,
       fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
       fflush(oVcf->file());
    
-      free(seqMer);
+      delete seqMer;
       
     }
   }

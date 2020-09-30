@@ -38,7 +38,6 @@ public:
   varMer(posGT* posGt){
     this->posGt = posGt;
   };
-  ~varMer();
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
