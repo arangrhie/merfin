@@ -129,8 +129,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
     // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
 
     //  fprintf(stderr, "\n");
-  }
-  return;
+  }return;
 }
 
 

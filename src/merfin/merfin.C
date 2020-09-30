@@ -474,7 +474,9 @@ varMers(dnaSeqFile       *sfile,
         vcfFile          *vfile,
         merylExactLookup *rlookup,
         merylExactLookup *alookup,
-        char             *out) {
+        char             *out,
+        uint32			  comb,
+        int				  threads) {
 
   //  output file
   compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
@@ -553,7 +555,7 @@ varMers(dnaSeqFile       *sfile,
 
       //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
 
-      gts    = posGt->_gts;
+      gts = posGt->_gts;
       refIdxList.clear();
       refLenList.clear();
       path.clear();
@@ -579,8 +581,8 @@ varMers(dnaSeqFile       *sfile,
       }
       //  fprintf(stderr, "\n");
 
-      if ( refIdxList.size() > 15 ) {
-        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > 15 ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size());
+      if ( refIdxList.size() > comb ) {
+        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
         continue;
       }
 
@@ -635,6 +637,9 @@ varMers(dnaSeqFile       *sfile,
       // generate vcfs
       fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
       fflush(oVcf->file());
+   
+      free(seqMer);
+      
     }
   }
 }
@@ -657,6 +662,7 @@ main(int argc, char **argv) {
   uint32          memory1     = 0;
   uint32          memory2     = 0;
   uint32          reportType  = OP_NONE;
+  uint32		  comb = 15;
 
   vector<const char *>  err;
   int             arg = 1;
@@ -709,6 +715,9 @@ main(int argc, char **argv) {
 
     } else if (strcmp(argv[arg], "-vmer") == 0) {
       reportType = OP_VAR_MER;
+
+    } else if (strcmp(argv[arg], "-comb") == 0) {
+      comb = strtouint32(argv[++arg]);
 
     } else {
       char *s = new char [1024];
@@ -785,6 +794,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "  -vmer\n");
     fprintf(stderr, "   Score each variant, or variants within distance k and its combination (varMer) by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
+    fprintf(stderr, "   Optional: -comb <N>, exclude combinations of more than N variants (default: 15)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
@@ -916,7 +926,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName);
+    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, threads);
 
     delete inVcf;
   }
