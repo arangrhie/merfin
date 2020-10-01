@@ -524,23 +524,30 @@ varMers(dnaSeqFile       *sfile,
   uint64   varMerId = 0;;
  
   // temporary sequence to hold ref bases
-  char      refTemplate[1024] = "";
+  char      refTemplate[200000] = "";
+  
+  sfile->generateIndex();  
+  uint64 ctgn = sfile->numberOfSequences();
 
-  for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
+    for (uint32 seqId=0; seqId<ctgn;seqId++)
+    {
+  
+    sfile->loadSequence(seq);
+  
     //  for each seqId
     seqName = string(seq.name());
     fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
 
     //  in case no seq.name() available, ignore this seqName
     if (mapChrPosGT->find(seqName) == mapChrPosGT->end()) {
-      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'\n", seq.name());
+      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
       continue;
 	}
     //  get chr specific posGTs
     posGTlist = mapChrPosGT->at(seq.name());
 
     //  get sequence combinations on each posGT list
-    for (int posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
+    for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
 
       // initialize variables
       posGt  = posGTlist->at(posGtIdx);
@@ -563,13 +570,13 @@ varMers(dnaSeqFile       *sfile,
       //  load original sequence from rStart to rEnd
       if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
         fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
-        return;
+        continue;
       }
       // DEBUG			fprintf(stderr, "%s\n", refTemplate);
        
       //  load mapPosHap
       //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
-      for (int i = 0; i < gts->size(); i++) {
+      for (uint32 i = 0; i < gts->size(); i++) {
          gt = gts->at(i);
          refIdxList.push_back(gt->_pos - rStart);
          refLenList.push_back(gt->_refLen);
@@ -598,7 +605,7 @@ varMers(dnaSeqFile       *sfile,
       //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
 
       //  print to debug
-      for ( int idx = 0; idx < seqMer->seqs.size(); idx++) {
+      for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
         fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
           seq.name(),
@@ -615,7 +622,7 @@ varMers(dnaSeqFile       *sfile,
         //  new vcf records
         //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
         if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
-          for ( int i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+          for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
             // Ignore the ref-allele (0/0) GTs
             // print only the non-ref allele variants for fixing
             int altIdx = seqMer->gtPaths.at(idx).at(i);
