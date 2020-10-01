@@ -232,7 +232,8 @@ dumpKmetric(char               *outName,
   }
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
-  
+
+  fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
   
@@ -370,7 +371,8 @@ histKmetric(char               *outName,
     overHist[ii] = 0;
     undrHist[ii] = 0;
   }
-  
+
+  fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();  
   int ctgn = sfile->numberOfSequences();
   
@@ -525,7 +527,8 @@ varMers(dnaSeqFile       *sfile,
  
   // temporary sequence to hold ref bases
   char      refTemplate[200000] = "";
-  
+
+  fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();  
   uint64 ctgn = sfile->numberOfSequences();
 
