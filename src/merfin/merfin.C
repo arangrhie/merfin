@@ -524,13 +524,13 @@ varMers(dnaSeqFile       *sfile,
   vector<int>     path;
 
   uint64   varMerId = 0;;
- 
-  // temporary sequence to hold ref bases
-  char      refTemplate[200000] = "";
 
   fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();  
   uint64 ctgn = sfile->numberOfSequences();
+  
+  // temporary sequence to hold ref bases
+  char * refTemplate;
 
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
@@ -569,13 +569,6 @@ varMers(dnaSeqFile       *sfile,
       refLenList.clear();
       path.clear();
       mapPosHap.clear();
-
-      //  load original sequence from rStart to rEnd
-      if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
-        continue;
-      }
-      // DEBUG			fprintf(stderr, "%s\n", refTemplate);
        
       //  load mapPosHap
       //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
@@ -589,6 +582,15 @@ varMers(dnaSeqFile       *sfile,
          mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
       }
       //  fprintf(stderr, "\n");
+      
+  	  refTemplate = new char[(ksize*2+rEnd-rStart)];      
+      
+      //  load original sequence from rStart to rEnd
+      if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
+        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        continue;
+      }
+      // DEBUG			fprintf(stderr, "%s\n", refTemplate);
 
       if ( refIdxList.size() > comb ) {
         fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
@@ -648,8 +650,9 @@ varMers(dnaSeqFile       *sfile,
       fflush(oVcf->file());
    
       delete seqMer;
+      delete[] refTemplate;
       
-    }
+    }  
   }
 }
 

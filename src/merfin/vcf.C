@@ -256,9 +256,12 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
 
   map<string , vector<posGT*> *>::iterator it;
 
-
+  #pragma omp parallel private(it)
+  {
   for ( it = _mapChrPosGT->begin(); it != _mapChrPosGT->end(); it++ ) {
     //  for each chromosome - posGTlist
+    #pragma omp single nowait
+    {
 
     //  Initialize variables
     int removed   = 0;
@@ -270,8 +273,7 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
     // fprintf(stderr, "[ DEBUG ] :: Merge variants in %s ... \n", chr.c_str());
     if ( posGtSizeB == 1 ) {
       fprintf(stderr, "%s : Nothing to merge. Only 1 variant found.\n", chr.c_str());
-      continue;
-    }
+    }else{
 
     //  Get first start and end
     uint32 start     = posGTlist->at(0)->_rStart;
@@ -328,7 +330,10 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
     }
     fprintf(stderr, "%s : Reduced %d variants down to %d combinations for evaluation (merged %d)\n", chr.c_str(), posGtSizeB, posGtSizeA, removed);
   }
-  return(true);
+  }
+  }
+ }
+ return(true);
 }
 
 
