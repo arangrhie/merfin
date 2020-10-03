@@ -478,6 +478,7 @@ varMers(dnaSeqFile       *sfile,
         merylExactLookup *alookup,
         char             *out,
         uint32			  comb,
+        bool			  nosplit,
         int				  threads) {
 
   //  output file
@@ -493,8 +494,8 @@ varMers(dnaSeqFile       *sfile,
   uint32 ksize = kmer::merSize();
 
   //  Merge posGTlist for each chr within ksize
-  fprintf(stderr, "Merge variants within %u-mer bases\n", ksize);
-  vfile->mergeChrPosGT(ksize);
+  fprintf(stderr, "Merge variants within %u-mer bases, splitting combinations greater than %u.\n", ksize, comb);
+  vfile->mergeChrPosGT(ksize, comb, nosplit);
 
   // print CHR rStart rEnd POS HAP1 HAP2 minHAP1 minHAP2 to out.debug
   
@@ -668,8 +669,9 @@ main(int argc, char **argv) {
 
   uint64          minV        = 0;
   uint64          maxV        = UINT64_MAX;
-  static uint64   ipeak        = 0;
+  static uint64   ipeak       = 0;
   bool            skipMissing = false;
+  bool            nosplit       = false;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
@@ -716,6 +718,9 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-memory2") == 0) {
       memory2 = strtouint32(argv[++arg]);
 
+    } else if (strcmp(argv[arg], "-nosplit") == 0) {
+      nosplit = true;
+
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
 
@@ -757,7 +762,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "         -seqmers  <seq.meryl>   \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
-    fprintf(stderr, "         -lookup     <lookup_table>  \\\n");
+    fprintf(stderr, "         -lookup   <lookup_table>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
     fprintf(stderr, "  Predict the kmer consequences of variant calls <input.vcf> given the consensus sequence <seq.fasta>\n");
@@ -777,7 +782,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "    -memory1 m   Don't use more than m GB memory for loading seqmers\n");
     fprintf(stderr, "    -memory2 m   Don't use more than m GB memory for loading readmers\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    -lookup optional input vector of probabilities.\n");
+    fprintf(stderr, "    -lookup file   Optional input vector of probabilities.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Exactly one report type must be specified.\n");
     fprintf(stderr, "\n\n");
@@ -804,9 +809,10 @@ main(int argc, char **argv) {
     fprintf(stderr, "      k*         - 0-centered k* value\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  -vmer\n");
-    fprintf(stderr, "   Score each variant, or variants within distance k and its combination (varMer) by k*.\n");
+    fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
-    fprintf(stderr, "   Optional: -comb <N>, exclude combinations of more than N variants (default: 15)\n");
+    fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
+    fprintf(stderr, "   Optional: -nosplit   without this options combinations larger than N are split\n");   
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
@@ -938,7 +944,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, threads);
+    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, threads);
 
     delete inVcf;
   }

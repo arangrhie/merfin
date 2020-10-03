@@ -250,7 +250,7 @@ vcfFile::saveFile(char *outName) {
 
 
 bool
-vcfFile::mergeChrPosGT(uint32 ksize) {
+vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
 
   uint32 K_OFFSET  =  ksize--;	// ksize - 1
 
@@ -301,9 +301,19 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
       //  Is ii overlapping with ii-1 th posGT ?
       //  Move - K_OFFSET from left to right (or vice versa)
       //  to prevent overflow
-      if (( iStart < end + (2 * K_OFFSET) && start < iStart)
-         || // In case not sorted
-          ( iEnd + (2 * K_OFFSET) > start && iEnd < end )) {
+      if (
+          (
+           ( iStart < end + (2 * K_OFFSET) && start < iStart)
+           || // In case not sorted
+           ( iEnd + (2 * K_OFFSET) > start && iEnd < end )
+          )
+          && 
+          (
+           (posGTlist->at(ii-1)->size() < comb)
+           ||
+           nosplit
+          )
+         ) {
 
         //  Add gts to previous posGT
         //  fprintf(stderr, "[ DEBUG ] :: Num. alleles = %u. Allele at %u = %s\n", gts->at(0)->alleles->size(), 0, gts->at(0)->alleles->at(0));
@@ -322,6 +332,13 @@ vcfFile::mergeChrPosGT(uint32 ksize) {
 				if ( iEnd > end )
 					end = iEnd;
 
+      } else if (posGTlist->at(ii-1)->size() >= comb && !nosplit) {
+      
+        fprintf(stderr, "More than %u variants in the combination when variant %u is included. Splitting. Consider filtering the vcf upfront.\n", posGTlist->at(ii-1)->size(), posGtSizeB-posGtSizeA);
+        start = posGTlist->at(ii)->_rStart;
+        end   = posGTlist->at(ii)->_rEnd;
+        ii++;
+      
       } else {
         start = posGTlist->at(ii)->_rStart;
         end   = posGTlist->at(ii)->_rEnd;

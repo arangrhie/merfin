@@ -147,6 +147,13 @@ public:
   vector<gtAllele*> *_gts;
 
 public:
+  int    size() {
+  
+  return _gts->size();
+  
+  };
+
+public:
   void    addGtAllele(gtAllele *gt) {
     _gts->push_back(gt);
 
@@ -171,7 +178,7 @@ public:
 
   bool    loadFile(char *inName);
   bool    saveFile(char *outName);
-  bool    mergeChrPosGT(uint32 ksize);	//  Merge ChrPosGT when POS are within ksize
+  bool    mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);	//  Merge ChrPosGT when POS are within ksize
   vector<string> getHeaders()  { return _headers; };
 
 public:
