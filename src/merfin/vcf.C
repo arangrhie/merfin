@@ -334,7 +334,7 @@ vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
 
       } else if (posGTlist->at(ii-1)->size() >= comb && !nosplit) {
       
-        fprintf(stderr, "More than %u variants in the combination when variant %u is included. Splitting. Consider filtering the vcf upfront.\n", posGTlist->at(ii-1)->size(), posGtSizeB-posGtSizeA);
+        fprintf(stderr, "---%s : More than %u variants in the combination when variant at position %u is included. Splitting. Consider filtering the vcf upfront.\n", chr.c_str(), posGTlist->at(ii-1)->size(), posGTlist->at(ii)->_rStart);
         start = posGTlist->at(ii)->_rStart;
         end   = posGTlist->at(ii)->_rEnd;
         ii++;
