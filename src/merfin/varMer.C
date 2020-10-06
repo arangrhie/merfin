@@ -47,12 +47,11 @@ varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, v
 }
 
 void
-varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup) {
+varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict) {
 
   //  iterate through each base and get kmer
   uint32 numM;  // num. missing kmers
   string seq;
-  vector<string> copyKmerDict;
   double prob;
   double readK;
   double asmK;

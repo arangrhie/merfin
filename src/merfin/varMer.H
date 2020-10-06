@@ -41,7 +41,7 @@ public:
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup);
+  void score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict);
 
   string  bestVariant();
   string  getHomRecord(int idx);

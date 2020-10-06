@@ -480,6 +480,7 @@ varMers(dnaSeqFile       *sfile,
         char             *out,
         uint32			  comb,
         bool			  nosplit,
+        vector<string>    copyKmerDict,
         int				  threads) {
 
   //  output file
@@ -525,7 +526,7 @@ varMers(dnaSeqFile       *sfile,
   map<int, vector<char*> > mapPosHap;
   vector<int>     path;
 
-  uint64   varMerId = 0;;
+  uint64   varMerId = 0;
 
   fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();  
@@ -608,7 +609,7 @@ varMers(dnaSeqFile       *sfile,
 
       //  score each combination
       //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
-      seqMer->score(rlookup, alookup);
+      seqMer->score(rlookup, alookup, copyKmerDict);
       //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
 
       //  print to debug
@@ -945,7 +946,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, threads);
+    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, threads);
 
     delete inVcf;
   }
