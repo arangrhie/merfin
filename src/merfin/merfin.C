@@ -411,9 +411,9 @@ histKmetric(char               *outName,
 				  missing++;
 				} else if ( readK < asmK ) {
 				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-				  //  TODO: Check if this kmer was already coutned. Only if not,
+				  //  TODO: Check if this kmer was already counted. Only if not,
 				  //  overcpy += (asmK - readK)
-				  	overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
+				  	overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
 				} else { // readK > asmK
 				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
 				}
@@ -462,12 +462,13 @@ histKmetric(char               *outName,
   fprintf(stderr, "K-mers found in the assembly: %lu\n", tot_kasm);
   double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   double qv = -10*log10(err);
-  fprintf(stderr, "Merqury  QV: %.2f\n", qv);
+  fprintf(stderr, "Merqury QV: %.2f\n", qv);
   tot_missing += (uint64) ceil(overcpy);
   err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   qv = -10*log10(err);
   fprintf(stderr, "Adjusted QV: %.2f\n", qv);
-  fprintf(stderr, "*** Note this QV is only valid if -seqmer was generated with -sequence ***\n\n");
+  fprintf(stderr, "*** Note this QV is valid only if -seqmer was generated with -sequence ***\n\n");
+  fprintf(stderr, "*** Merqury QV only considers missing kmers as errors. Merfin QV includes overrepresented kmers. ***\n\n");
 }
 
 
