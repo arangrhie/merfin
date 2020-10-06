@@ -55,8 +55,7 @@ getKmetricDef(
   if ( readK == 0 ) {
     kMetric = 0;
   } else if ( asmK > readK ) {
-    kMetric = asmK / readK - 1;
-    kMetric = kMetric * -1;
+    kMetric = (asmK / readK - 1) * -1;
   } else { // readK > asmK
     kMetric = readK / asmK - 1;
   }
@@ -109,9 +108,9 @@ getKmetricProb(
   asmK  = (double) tValue;
   
   if ( asmK >= readK ) {
-    kMetric = ((asmK - readK) / asmK) * prob;
+    kMetric = (asmK / readK - 1) * -1;
   } else { // readK > asmK
-    kMetric = 1 - ((readK - asmK) / readK) * prob;
+    kMetric = readK / asmK - 1;
   }
 
   return kMetric;

@@ -336,7 +336,7 @@ histKmetric(char               *outName,
             int                 threads) {
 
   dnaSeq seq;
-  double prob;
+  double prob = 0;
   double asmK;
   double readK;
   double kMetric;
@@ -413,7 +413,7 @@ histKmetric(char               *outName,
 				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
 				  //  TODO: Check if this kmer was already coutned. Only if not,
 				  //  overcpy += (asmK - readK)
-				  overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
+				  	overcpy += (double) 1 - readK / asmK;  //  (asmK - readK) / asmK
 				} else { // readK > asmK
 				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
 				}

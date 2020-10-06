@@ -1,6 +1,6 @@
 ## GenomeScope2 for Merfin
 ##
-## This is a modified version of Genomescope useful to compute probabilities 
+## This is a modified version of Genomescope useful to compute a lookup table of read multiplicities and associated probabilities 
 
 ## Install packages if necessary
 
@@ -596,7 +596,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
   format_column_2 = "%-18s"
   format_column_3 = "%-18s"
   
-  cat(paste("GenomeScope version 1.0", sep=""),                                                                                                                                                               file=summaryFile, sep="\n") 
+  cat(paste("GenomeScope version 2.0", sep=""),                                                                                                                                                               file=summaryFile, sep="\n") 
   cat(paste("k = ", k,sep=""),                                                                                                                                                                                file=summaryFile, sep="\n", append=TRUE) 
   cat(paste("\n",sprintf(format_column_1,"property"),         sprintf(format_column_2,"min"), sprintf(format_column_3,"max"), sep=""),                                                                        file=summaryFile, sep="\n", append=TRUE)
   cat(paste(sprintf(format_column_1,"Heterozygosity"),        sprintf(format_column_2,percentage_format(het[1])), sprintf(format_column_3,percentage_format(het[2])), sep=""),                                file=summaryFile, sep="\n", append=TRUE)
@@ -714,7 +714,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
 args<-commandArgs(TRUE)
 
 if(length(args) < 4) {
-	cat("USAGE: genomescope.R histogram_file k-mer_length read_length output_dir hom=TRUE/FALSE\n")
+	cat("USAGE: lookup.R histogram_file k-mer_length output_dir hom=TRUE/FALSE\n")
 	quit()
 } else{
 
