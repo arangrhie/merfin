@@ -20,7 +20,7 @@ uint64
 peak = 0;
            
 double
-getKmetricDef(
+getKmetric(
   		   merylExactLookup   *rlookup,
            merylExactLookup   *alookup,
            kmer                fmer,
@@ -37,13 +37,7 @@ getKmetricDef(
   rlookup->exists(fmer, fValue);
   rlookup->exists(rmer, rValue);
 
-  readK = (double) (fValue + rValue) / peak;
-
-  if (0 < readK && readK < 1) {
-     readK = 1;
-  } else {
-     readK = round(readK);
-  }
+  getreadK(fValue, rValue, copyKmerDict, readK, prob);
 
   fValue = 0;
   rValue = 0;
@@ -63,25 +57,35 @@ getKmetricDef(
 }
 
 double
-getKmetricProb(
-		   merylExactLookup   *rlookup,
-           merylExactLookup   *alookup,
-           kmer                fmer,
-           kmer                rmer,
-           vector<string>	  &copyKmerDict,
+getreadKdef(
+  		   uint64   		   fValue,
+           uint64   		   rValue,
+           vector<string>     &copyKmerDict,
            double             &readK,
-           double             &asmK,
-           double			  &prob) {
+           double			  &prob
+		   ) {
 
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  uint64 tValue = 0;
-  double kMetric;
+  readK = (double) (fValue + rValue) / peak;
 
-  rlookup->exists(fmer, fValue);
-  rlookup->exists(rmer, rValue);
+  if (0 < readK && readK < 1) {
+     readK = 1;
+  } else {
+     readK = round(readK);
+  }
   
-  tValue = fValue + rValue;
+  return readK;
+}
+
+double
+getreadKprob(
+  		   uint64   		   fValue,
+           uint64   		   rValue,
+           vector<string>     &copyKmerDict,
+           double             &readK,
+           double			  &prob
+		   ) {
+
+  double tValue = fValue + rValue;
 
   if (0 < tValue && tValue < copyKmerDict.size()) {
   
@@ -97,22 +101,6 @@ getKmetricProb(
 
   }
 
-  fValue = 0;
-  rValue = 0;
+  return readK;
   
-  alookup->exists(fmer, fValue);
-  alookup->exists(rmer, rValue);
-  
-  tValue = fValue + rValue;
-
-  asmK  = (double) tValue;
-  
-  if ( asmK >= readK ) {
-    kMetric = (asmK / readK - 1) * -1;
-  } else { // readK > asmK
-    kMetric = readK / asmK - 1;
-  }
-
-  return kMetric;
-           
 }

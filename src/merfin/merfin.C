@@ -40,6 +40,8 @@
 #define OP_DUMP       2
 #define OP_VAR_MER    3
 
+func_t getreadK;
+
 uint64 getIndex(vector<string> v, string K) 
 { 
     auto it = find(v.begin(), v.end(), K); 
@@ -222,14 +224,6 @@ dumpKmetric(char               *outName,
   kmerIterator kiter;
   map<string, uint64> order;
   string tmp = tmpnam(nullptr);
-  
-  func_t getKmetric = &getKmetricDef;
-
-  if (!(copyKmerDict.empty())) {
-
-	getKmetric = &getKmetricProb;
-	
-  }
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
@@ -336,7 +330,7 @@ histKmetric(char               *outName,
             int                 threads) {
 
   dnaSeq seq;
-  double prob = 0;
+  double prob = 1;
   double asmK;
   double readK;
   double kMetric;
@@ -346,14 +340,6 @@ histKmetric(char               *outName,
   uint64 rValue = 0;
   kmerIterator kiter;
   uint32 ksize = kmer::merSize();
-  
-  func_t getKmetric = &getKmetricDef;
-
-  if (!copyKmerDict.empty()) {
-
-	getKmetric = &getKmetricProb;
-	
-  }
   
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
   compressedFileWriter *k_hist   = new compressedFileWriter(outName);
@@ -659,7 +645,6 @@ varMers(dnaSeqFile       *sfile,
   }
 }
 
-
 int
 main(int argc, char **argv) {
   char           *seqName       = NULL;
@@ -842,9 +827,11 @@ main(int argc, char **argv) {
     exit(1);
   }
 
-	vector<string> copyKmerDict;
+  omp_set_num_threads(threads);
 
-	if (!(pLookupTable == NULL)) {
+  vector<string> copyKmerDict;
+
+  if (!(pLookupTable == NULL)) {
 
 	     //  Read probabilities lookup table for 1-4 copy kmers.
 
@@ -891,8 +878,16 @@ main(int argc, char **argv) {
 		}
 	  }
 	}
+
+  // pick readK function based on dictionary availability
+		
+  getreadK = &getreadKdef;
+
+  if (!copyKmerDict.empty()) {
+
+	getreadK = &getreadKprob;
 	
-  omp_set_num_threads(threads);
+  }	
 
   //  Open read kmers, build a lookup table.
 

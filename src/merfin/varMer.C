@@ -57,14 +57,6 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
   double asmK;
   double kMetric;
   vector<double> m_ks;
-  
-  func_t getKmetric = &getKmetricDef;
-
-  if (!copyKmerDict.empty()) {
-
-	getKmetric = &getKmetricProb;
-	
-  }
 
   uint32 idx = 0;       // var index in the seqe
 
