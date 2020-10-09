@@ -54,14 +54,14 @@ Merfin is still under active development. Feel free to reach out to us if you ha
 cd ../build/bin/
 ./merfin
 
-usage: ./merfin <report-type> \
-         -sequence <seq.fasta>   \
-         -seqmers  <seq.meryl>   \
+usage: ./merfin <report-type>      \
+         -sequence <seq.fasta>     \
+         -seqmers  <seq.meryl>     \
          -readmers <read.meryl>    \
          -peak     <haploid_peak>  \
-		 -lookup     <lookup_table> \
+         -lookup   <lookup_table>  \
          -vcf      <input.vcf>     \
-         -output   <output>        
+         -output   <output>           
 
   Predict the kmer consequences of variant calls <input.vcf> given the consensus sequence <seq.fasta>
   and lookup the k-mer multiplicity in the consensus sequence <seq.meryl> and in the reads <read.meryl>.
@@ -91,14 +91,16 @@ usage: ./merfin <report-type> \
    Closer to 0 means the expected and found k-mers are well balenced, 1:1.
    Reports QV at the end, in stderr.
    Required: -sequence, -seqmers, -readmers, -peak, and -output.
-   Optional: -lookup
+   Optional: -lookup <probabilities> use probabilities to adjust multiplicity to copy number
 
    Output: k* <tab> frequency
+
 
   -dump
    Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.
    Required: -sequence, -seqmers, -readmers, -peak, and -output
-   Optional: -lookup
+   Optional: -skipMissing will skip the missing kmer sites to be printed
+             -lookup <probabilities> use probabilities to adjust multiplicity to copy number
 
    Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*
       seqName    - name of the sequence this kmer is from
@@ -107,40 +109,51 @@ usage: ./merfin <report-type> \
       asmK       - assembly copies as found in <seq.meryl>
       k*         - 0-centered k* value
 
-  -vmer (experimental)
-   Score each variant, or variants within distance k and its combination by k*.
-   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output
-   Optional: -lookup
 
-   Output:
+  -vmer
+   Score each variant, or variants within distance k and their combinations by k*.
+   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output
+   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)
+             -nosplit   without this options combinations larger than N are split
+             -by-kstar  output variants by kstar. *experimental*
+                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.
+                        first ALT in heterozygous alleles are better supported by avg. |k*|.
+             -lookup <probabilities> use probabilities to adjust multiplicity to copy number
+
+   Output files: <output>.debug and <output>.polish.vcf
     <output>.debug : some useful info for debugging.
                      seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path
-      seqName         - name of the sequence this kmer is from
-      varMerStart     - start position (0-based) of the variant (s), including sequences upstream of k-1 bp
-      varMerEnd       - end position (1-based) of the variant (s), including sequences downstream of k-1 bp
-      varMerSeq       - combination of variant sequence to evalute
-      score           - score, min k*? median k*? to be decided...
-      path            - position of the variant (type of variant used: 0 = hap1, 1 = hap2, 2 = ref)
-    <output>.pri.vcf  - variants chosen. use bcftools to polish <seq.fata> (Not implemented yet)
-    <output>.alt.vcf  - variants not chosen but have high support (Not implemented yet)
+      varMerID    - unique numbering, starting from 0
+      varMerRange - seqName:start-end. position (0-based) of the variant (s), including sequences upstream and downstream of k-1 bp
+      varMerSeq   - combination of variant sequence to evalute
+      numMissings - total number of missing kmers
+      min k*      - minimum of all |k*| for non-missing kmers. -1 when all kmers are missing.
+      max k*      - maximum of all |k*| for non-missing kmers. -1 when all kmers are missing.
+      avg k*      - average of all |k*| for non-missing kmers. -1 when all kmers are missing.
+      median k*   - median  of all |k*| for non-missing kmers. -1 when all kmers are missing.
+      record      - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.
+
+    <output>.polish.vcf : variants chosen.
+     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.
+     ALT alleles are favored with more support compared to the REF allele.
 ```
 
 Example run:
 ```
 // Get histogram and QV specific to chrX - QV is correct. Histogram will be biased for collapses
-merfin -hist -memory 16 -sequence chrX.fasta -seqmers chrX.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
+merfin -hist -memory1 2 -memory2 16 -sequence chrX.fasta -seqmers chrX.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
 
 // Get histogram and QV specific to chrX - Histogram is correct. QV will be biased
-merfin -hist -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
+merfin -hist -memory1 2 -memory2 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.chrX.hist
 
 // Get histogram and QV for the full assembly - Histogram and QV correct
-merfin -hist -memory 120 -sequence asm.fasta -seqmers asm.meryl -readmers read.meryl/ -peak 104 -output out.chrX.hist
+merfin -hist -memory1 12 -memory2 120 -sequence asm.fasta -seqmers asm.meryl -readmers read.meryl/ -peak 104 -output out.chrX.hist
 
 // Dump readK, asmK, k* for each position of chrX
-merfin -dump -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.dump.gz
+merfin -dump -memory1 2 -memory2 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -output out.dump.gz
 
 // Score each variant call and sort
-merfin -vmer -memory 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -vcf chrX.tiny.vcf -output out.dump.gz
+merfin -vmer -memory1 2 -memory2 16 -sequence chrX.fasta -seqmers asm.meryl -readmers chrX.read.meryl/ -peak 104 -vcf chrX.tiny.vcf -output out.dump.gz
 ```
 
 ## Acknowledgements
