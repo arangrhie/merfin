@@ -14,16 +14,17 @@ make -j 12
 
 `meryl` and `meryl-utility` are installed as submodules.
 
-
 ## Running Merfin
 
-Merfin can be used to assess collapsed or duplicated region of the assembly (-hist, -dump) or to evaluate variant calls (-vmer). QV estimates for all scaffolds will also be generated with -hist and -dump.
+Merfin can be used to assess collapsed or duplicated region of the assembly (`-hist`, `-dump`) or to evaluate variant calls (`-vmer`). QV estimates for all scaffolds will also be generated with `-hist` and `-dump`.
 
-In all cases a diploid peak estimate must be provided (-peak), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
+In all cases a diploid peak estimate must be provided (`-peak`), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/genomescope`. 
 
-Optionally, a custom table of probabilities can be used as input (-lookup), also generated using the script under `scripts/genomescope`. This is still experimental.
+Optionally, a custom table of probabilities can be used as input (`-lookup`), also generated using the script under `scripts/genomescope`. This is still experimental.
 
-The output of -dump can be further converted to .Wig/.bw tracks for visualization on IGV with:
+### Assess collapses/duplications and per base QV ###
+
+The output of `-dump` can be further converted to `.Wig/.bw` tracks for visualization on IGV with:
 
 ```
 awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep chrom="chr" span=1"};if($3!=0){printf $2+1"\t"$5"\n"}}' $dump_output > $dump_output.Wig
@@ -31,9 +32,23 @@ awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep c
 wigToBigWig $dump_output.Wig $dump_output.bw
 ```
 
+### Filter variant calls for polishing ###
+
+The input `.vcf` can be supplied with the `-vmer` option. The ouput will include only the variants that passed the Merfin screening.
+
+Once the filtered `.vcf` is generated, the assembly can be polished with:
+
+```
+bcftools -Oz merfin_output.polish.vcf > merfin_output.polish.vcf.gz #bgzip merfin output
+bcftools index merfin_output.polish.vcf.gz
+bcftools consensus merfin_output.polish.vcf.gz -f assembly.fasta -H 2 > polished_assembly.fasta # -H 2 applies only alt alleles at each position
+```
+
 Two set of similar scripts for further parallelization on HPC (slurm) are available under `scripts/parallel1` and `scripts/parallel2`.
 
 Merfin is still under active development. Feel free to reach out to us if you have any question.
+
+### Helper ###
 
 ```
 cd ../build/bin/

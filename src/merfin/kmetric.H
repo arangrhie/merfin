@@ -27,17 +27,17 @@
 extern uint64 peak;
 
 typedef double (*func_t)(
-  		   merylExactLookup   *rlookup,
-           merylExactLookup   *alookup,
-           kmer                fmer,
-           kmer                rmer,
-           vector<string>	  &copyKmerDict,
+  		   uint64   		   fValue,
+           uint64   		   rValue,
+           vector<string>     &copyKmerDict,
            double             &readK,
-           double             &asmK,
-           double			  &prob);
+           double			  &prob
+		   );
+		   
+extern func_t getreadK;
            
 double
-getKmetricDef(
+getKmetric(
   		   merylExactLookup   *rlookup,
            merylExactLookup   *alookup,
            kmer                fmer,
@@ -48,14 +48,21 @@ getKmetricDef(
            double			  &prob);
            
 double
-getKmetricProb(
-  		   merylExactLookup   *rlookup,
-           merylExactLookup   *alookup,
-           kmer                fmer,
-           kmer                rmer,
+getreadKdef(
+  		   uint64   		   fValue,
+           uint64   		   rValue,
            vector<string>     &copyKmerDict,
            double             &readK,
-           double             &asmK,
-           double			  &prob);
+           double			  &prob
+		   );
+		   
+double
+getreadKprob(
+  		   uint64   		   fValue,
+           uint64   		   rValue,
+           vector<string>     &copyKmerDict,
+           double             &readK,
+           double			  &prob
+		   );
            
 #endif  //  KMETRIC_H
