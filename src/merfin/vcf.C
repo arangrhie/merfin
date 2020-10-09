@@ -143,7 +143,7 @@ vcfRecord::load(char *inLine) {
 
 void
 vcfRecord::save(compressedFileWriter *outFile) {
-  fprintf(outFile->file(), "%s\t%d\t%s\t%s\t%s\t%f\t%s\t%s\t%s\t%s\n",
+  fprintf(outFile->file(), "%s\t%d\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\n",
           _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
 }
 
