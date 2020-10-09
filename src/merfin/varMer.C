@@ -131,6 +131,77 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
   }return;
 }
 
+/***
+ * Get the best variant combination, but print the original vcf 
+ ***/
+vector<vcfRecord*>
+varMer::bestVariantOriginalVCF() {
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+  vector<vcfRecord*> records;
+
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+    //  ignore when all kmers are 'missings' 
+    if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
+
+    //  found a smaller numMissing 
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing ) {
+      //  has the same numMissing
+      idxs.push_back(ii);
+
+    } // else : ignore
+  }
+
+  //  ignore if all kmers creats only missings
+  if ( numMissing == UINT32_MAX ) return records;
+
+  //  only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // get idx of the combination
+    int idx = idxs.at(0);
+
+    // retrieve the original vcf record and return
+    return getOriginalVCF(idx);
+
+  } else if ( idxs.size() > 1) {
+
+    // found multiple combination equally having the minimum missing km
+    // sort by the Avg. Absolute K* closest to 0
+    // and the second best
+    for ( int i = 0; i < idxs.size(); i++ ) {
+        int idx = idxs.at(i);
+          avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
+    }
+    multimap<double, int >::iterator it = avgKs.begin();
+    double  avgK1 = (*it).first;
+    int      idx1 = (*it).second;
+    it++;
+    double avgK2 = (*it).first;
+    int     idx2 = (*it).second;
+    double kDiff = avgK1 - avgK2;
+
+    if ( kDiff < 0 ) kDiff *= -1;
+    
+    if ( avgK1 == avgK2 || kDiff < 0.05 ) {
+        // if equaly scored, chose the longer allele as hap1
+        if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
+              return getOriginalVCF(idx1);
+        } else {
+              return getOriginalVCF(idx2);
+        }
+    } else {
+        return getOriginalVCF(idx1);
+    }
+  }
+
+  // no best?
+  return records;
+}
 
 string
 varMer::bestVariant() {
@@ -201,6 +272,20 @@ varMer::bestVariant() {
   return "";
 }
 
+vector<vcfRecord*>
+varMer::getOriginalVCF(int idx) {
+  vector<vcfRecord*> records;
+  for ( int i = 0; i < gtPaths.at(idx).size(); i++) {
+    // Ignore sites where it has to be ref allele (gtPaths.at(idx).at(i) == 0)
+    if (gtPaths.at(idx).at(i) > 0)
+      records.push_back(posGt->_gts->at(i)->_record);
+  }
+  return records;
+}
+
+/***
+ * Experimental
+ */
 string
 varMer::getHetRecord(int idx1, int idx2) {
 

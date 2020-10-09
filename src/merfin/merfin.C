@@ -649,8 +649,18 @@ varMers(dnaSeqFile       *sfile,
       }
 
       // generate vcfs
-      fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
-      fflush(oVcf->file());
+      // Experimental: output vcf according to k*
+      // fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
+      // fflush(oVcf->file());
+      //
+      // Conservatively, filter vcf and print as it was in the original vcf
+      vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+      if (records.size() > 0) {
+        for (uint64 i = 0; i < records.size(); i++) {
+          records.at(i)->save(oVcf);
+          fflush(oVcf->file());
+        }
+      }
    
       delete seqMer;
       delete[] refTemplate;

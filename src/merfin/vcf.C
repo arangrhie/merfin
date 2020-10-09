@@ -23,7 +23,7 @@
 
 
 gtAllele::gtAllele(vcfRecord *record) {
-    
+    _record = record;
     _pos  = record->_pos - 1;
     alleles = new vector<char*>;
     
@@ -142,8 +142,8 @@ vcfRecord::load(char *inLine) {
 }
 
 void
-vcfRecord::save(FILE *outFile) {
-  fprintf(outFile, "%s\t%d\t%s\t%s\t%s\t%f\t%s\t%s\t%s\t%s\n",
+vcfRecord::save(compressedFileWriter *outFile) {
+  fprintf(outFile->file(), "%s\t%d\t%s\t%s\t%s\t%f\t%s\t%s\t%s\t%s\n",
           _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
 }
 
@@ -233,15 +233,11 @@ vcfFile::loadFile(char *inName) {
 
 
 bool
-vcfFile::saveFile(char *outName) {
-
-  FILE *F = AS_UTL_openOutputFile(outName);
+vcfFile::saveFile(compressedFileWriter *outFile) {
 
   for (uint32 ii=0; ii<_records.size(); ii++)
     if (_records[ii])
-      _records[ii]->save(F);
-
-  AS_UTL_closeFile(F, outName);
+      _records[ii]->save(outFile);
 
   return(true);
 }

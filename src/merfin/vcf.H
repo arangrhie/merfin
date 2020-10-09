@@ -80,7 +80,7 @@ public:
 
   void    load(char *inLine);
   bool    isInvalid() { return !isValid;  };
-  void    save(FILE *outFile);
+  void    save(compressedFileWriter* outFile);
 
 public:
   char*         _chr;          //  CHR
@@ -113,6 +113,7 @@ public:
   ~gtAllele();
 
 public:
+  vcfRecord*    _record;
   uint32        _pos;
   uint32        _refLen;
   vector<char*> *alleles;
@@ -177,7 +178,7 @@ public:
   ~vcfFile();
 
   bool    loadFile(char *inName);
-  bool    saveFile(char *outName);
+  bool    saveFile(compressedFileWriter *outFile);
   bool    mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);	//  Merge ChrPosGT when POS are within ksize
   vector<string> getHeaders()  { return _headers; };
 

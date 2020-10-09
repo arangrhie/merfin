@@ -44,6 +44,8 @@ public:
   void score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict);
 
   string  bestVariant();
+  vector<vcfRecord*>  bestVariantOriginalVCF();
+  vector<vcfRecord*>  getOriginalVCF(int idx);
   string  getHomRecord(int idx);
   string  getHetRecord(int idx1, int idx2);
   double  getMinAbsK(int idx);
