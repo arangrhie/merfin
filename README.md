@@ -34,7 +34,7 @@ wigToBigWig $dump_output.Wig $dump_output.bw
 
 ### Filter variant calls for polishing ###
 
-The input `.vcf` can be supplied with the `-vmer` option. The ouput will consist of only the variants that passed the Merfin screening.
+The input `.vcf` can be supplied with the `-vmer` option. The ouput will include only the variants that passed the Merfin screening.
 
 Once the filtered `.vcf` is generated, the assembly can be polished with:
 
