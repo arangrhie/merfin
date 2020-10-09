@@ -49,6 +49,8 @@ Two set of similar scripts for further parallelization on HPC (slurm) are availa
 
 Merfin is still under active development. Feel free to reach out to us if you have any question.
 
+### Helper ###
+
 ```
 cd ../build/bin/
 ./merfin
