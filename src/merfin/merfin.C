@@ -797,6 +797,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
     fprintf(stderr, "   Reports QV at the end, in stderr.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output.\n");
+    fprintf(stderr, "   Optional: -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: k* <tab> frequency\n");
     fprintf(stderr, "\n\n");
@@ -804,6 +805,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output\n");
     fprintf(stderr, "   Optional: -skipMissing will skip the missing kmer sites to be printed\n");
+    fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*\n");
     fprintf(stderr, "      seqName    - name of the sequence this kmer is from\n");
@@ -811,7 +813,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "      readK      - normalized read copies (read multiplicity / peak)\n");
     fprintf(stderr, "      asmK       - assembly copies as found in <seq.meryl>\n");
     fprintf(stderr, "      k*         - 0-centered k* value\n");
-    fprintf(stderr, "\n");
+    fprintf(stderr, "\n\n");
     fprintf(stderr, "  -vmer\n");
     fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
@@ -820,6 +822,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "             -by-kstar  output variants by kstar. *experimental*\n");   
     fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
     fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
+    fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
