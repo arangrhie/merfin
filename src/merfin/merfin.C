@@ -478,10 +478,11 @@ varMers(dnaSeqFile       *sfile,
         merylExactLookup *rlookup,
         merylExactLookup *alookup,
         char             *out,
-        uint32			  comb,
-        bool			  nosplit,
+        uint32			      comb,
+        bool			        nosplit,
         vector<string>    copyKmerDict,
-        int				  threads) {
+        bool              bykstar,
+        int				        threads) {
 
   //  output file
   compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
@@ -649,16 +650,18 @@ varMers(dnaSeqFile       *sfile,
       }
 
       // generate vcfs
-      // Experimental: output vcf according to k*
-      // fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
-      // fflush(oVcf->file());
-      //
-      // Conservatively, filter vcf and print as it was in the original vcf
-      vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
-      if (records.size() > 0) {
-        for (uint64 i = 0; i < records.size(); i++) {
-          records.at(i)->save(oVcf);
-          fflush(oVcf->file());
+      if (bykstar) {
+        // Experimental: output vcf according to k*
+        fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
+        fflush(oVcf->file());
+      } else {
+        // Filter vcf and print as it was in the original vcf, conservatively
+        vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+        if (records.size() > 0) {
+          for (uint64 i = 0; i < records.size(); i++) {
+            records.at(i)->save(oVcf);
+            fflush(oVcf->file());
+          }
         }
       }
    
@@ -683,7 +686,8 @@ main(int argc, char **argv) {
   uint64          maxV        = UINT64_MAX;
   static uint64   ipeak       = 0;
   bool            skipMissing = false;
-  bool            nosplit       = false;
+  bool            nosplit     = false;
+  bool            bykstar     = false;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
@@ -733,6 +737,9 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       nosplit = true;
 
+    } else if (strcmp(argv[arg], "-bykstar") == 0) {
+      bykstar = true;
+
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
 
@@ -769,9 +776,9 @@ main(int argc, char **argv) {
     err.push_back("No output (-output) supplied.\n");
 
   if (err.size() > 0) {
-    fprintf(stderr, "usage: %s <report-type> \\\n", argv[0]);
-    fprintf(stderr, "         -sequence <seq.fasta>   \\\n");
-    fprintf(stderr, "         -seqmers  <seq.meryl>   \\\n");
+    fprintf(stderr, "usage: %s <report-type>            \\\n", argv[0]);
+    fprintf(stderr, "         -sequence <seq.fasta>     \\\n");
+    fprintf(stderr, "         -seqmers  <seq.meryl>     \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
     fprintf(stderr, "         -lookup   <lookup_table>  \\\n");
@@ -824,7 +831,10 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
-    fprintf(stderr, "   Optional: -nosplit   without this options combinations larger than N are split\n");   
+    fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");   
+    fprintf(stderr, "             -by-kstar  output variants by kstar. *experimental*\n");   
+    fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
@@ -840,8 +850,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "      record      - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.\n");
-    fprintf(stderr, "     0/1 and 1/0 are heterozygous alleles, with equal num. missings and avg. |k*|.\n");
+    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
@@ -956,7 +966,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, threads);
+    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, bykstar, threads);
 
     delete inVcf;
   }
