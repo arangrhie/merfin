@@ -307,9 +307,9 @@ dumpKmetric(char               *outName,
 	ofstream ofile(outName, ios::out | ios::app); 
 	char filename[64];
 	
-    seqFile = new dnaSeqFile(seqName);
+    sfile = new dnaSeqFile(seqName);
 
-    for (uint32 seqId=0; seqFile->loadSequence(seq);seqId++) {
+    for (uint32 seqId=0; sfile->loadSequence(seq);seqId++) {
     
 		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.name()));
 		
