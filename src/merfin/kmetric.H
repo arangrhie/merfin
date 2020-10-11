@@ -36,8 +36,8 @@ typedef double (*func_t)(
 		   
 extern func_t getreadK;
            
-double
-getKmetric(
+void
+getK(
   		   merylExactLookup   *rlookup,
            merylExactLookup   *alookup,
            kmer                fmer,
@@ -46,6 +46,9 @@ getKmetric(
            double             &readK,
            double             &asmK,
            double			  &prob);
+           
+double
+getKmetric(double readK, double asmK);
            
 double
 getreadKdef(

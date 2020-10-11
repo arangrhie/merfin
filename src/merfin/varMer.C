@@ -55,8 +55,11 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
   double prob;
   double readK;
   double asmK;
+  double oDeltak;
+  double nDeltak;
   double kMetric;
   vector<double> m_ks;
+  vector<double> m_dks;
 
   uint32 idx = 0;       // var index in the seqe
 
@@ -66,6 +69,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
 
     seq    = seqs.at(ii);
     m_ks.clear();
+    m_dks.clear();
     //  fprintf(stderr, "\n[ DEBUG ]:: score %d th combination :: %s:%u-%u\t%s\n", ii, posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
 
     idx = 0;
@@ -76,46 +80,55 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
       asmK  = 0;
 
       if (kiter.isValid()) {
-        //  we only need readK and asmK, no need to get the kMetric here yet
-				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
-        getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-				//  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
-      }
+		  //  we only need readK and asmK, no need to get the kMetric here yet
+		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
+		  getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
+	  }		  
+	  // store difference in kmer count accounting for uncertainty in the estimate of readK
+	  oDeltak = abs(readK - asmK) * prob;
 
-      //  fprintf(stderr, "[ DEBUG ] :: is the idx a newly introduced kmer? Check the idx (%u) falls in any of the %lu idxPaths.at(%d)\n", idx, idxPaths.at(ii).size(), ii);
-      //  fprintf(stderr, "[ DEBUG ] :: size of idxPaths.at(%d)=%lu | lenPaths.at(%d)=%lu | gtPath.at(%d)=%lu\n", ii, idxPaths.at(ii).size(), ii, lenPaths.at(ii).size(), ii, gtPaths.at(ii).size());
-      for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
-        uint32 idxPath = idxPaths.at(ii).at(jj);
-        uint32 lenPath = lenPaths.at(ii).at(jj);
-        int    gtPath  = gtPaths.at(ii).at(jj);
-        //  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
-        if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
-          asmK++; // +1 as we are introducing a new kmer
-          break;  // add only once
-        }
-      }
+	  //  fprintf(stderr, "[ DEBUG ] :: is the idx a newly introduced kmer? Check the idx (%u) falls in any of the %lu idxPaths.at(%d)\n", idx, idxPaths.at(ii).size(), ii);
+	  //  fprintf(stderr, "[ DEBUG ] :: size of idxPaths.at(%d)=%lu | lenPaths.at(%d)=%lu | gtPath.at(%d)=%lu\n", ii, idxPaths.at(ii).size(), ii, lenPaths.at(ii).size(), ii, gtPaths.at(ii).size());
+	  for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
+		uint32 idxPath = idxPaths.at(ii).at(jj);
+		uint32 lenPath = lenPaths.at(ii).at(jj);
+		int    gtPath  = gtPaths.at(ii).at(jj);
+		//  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
+		if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
+		  asmK++; // +1 as we are introducing a new kmer
+		  break;  // add only once
+		}
+	  }
 			//  fprintf(stderr, "\n");
 
-      //  re-define k* given rounded readK and asmK, in absolute values
-      if (readK == 0) {
-        kMetric = -1;  // use 0 if we are using non-abs k*
-        numM++;
+	  //  re-define k* given rounded readK and asmK, in absolute values
+	  if (readK == 0) {
+		kMetric = -1;  // use 0 if we are using non-abs k*
+		numM++;
 
-      } else if (readK > asmK) {
-        kMetric = readK / asmK - 1;
+	  } else if (readK > asmK) {
+		kMetric = readK / asmK - 1;
 
-      } else {
-        kMetric = asmK  / readK - 1;
-      }
+	  } else {
+		kMetric = asmK / readK - 1;
+	  }
+      // recompute difference in kmer count if the variant is introduced
+	  nDeltak = abs(readK - asmK) * prob;
 
-      m_ks.push_back(kMetric);
-      // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
+	  // store new k*
+	  m_ks.push_back(kMetric);
+	  // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
 
-      idx++;
+	  // store the delta k* when the variant is applied
+	  m_dks.push_back(oDeltak-nDeltak);
+	  
+	  idx++;	 
     }
 
     numMs.push_back(numM);
     kstrs.push_back(m_ks);
+    dkstrs.push_back(m_dks);
 
     // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
 
@@ -218,7 +231,7 @@ varMer::bestVariant() {
     } // else : ignore
   }
 
-  //  ignore if all kmers creats only missings
+  //  ignore if all kmers creates only missings
   if ( numMissing == UINT32_MAX ) return "";
 
   //  only one combination has the minimum num. of missings
@@ -235,10 +248,11 @@ varMer::bestVariant() {
     // and the second best as het
     for ( int i = 0; i < idxs.size(); i++ ) {
       int idx = idxs.at(i);
-      avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
+      //avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
+      avgKs.insert(make_pair(getTotdK(idx), idx));
     }
 
-    multimap<double, int >::iterator it = avgKs.begin();
+    multimap<double, int>::iterator it = avgKs.begin();
     double  avgK1 = (*it).first;
     int      idx1 = (*it).second;
     it++;
@@ -246,9 +260,8 @@ varMer::bestVariant() {
     int     idx2 = (*it).second;
 
     double kDiff = avgK1 - avgK2;
-    if ( kDiff < 0 ) kDiff *= -1;
 
-    if ( avgK1 == avgK2 || kDiff < 0.05 ) {
+    if ( avgK1 == avgK2 ) {
       // if equaly scored, chose the longer allele as hap1
       if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
         return getHetRecord(idx1, idx2);
@@ -415,3 +428,37 @@ varMer::getMedAbsK(int idx) {
     return kstr.at(i + ((kstr.size() - i)/2));
 }
 
+double
+varMer::getAvgAbsdK(int idx, double kstr_ref) {
+  // fprintf(stderr, "getAvgAbsdK(%d) called.\n", idx);
+
+  double sum = 0;
+  double absK;
+
+  vector<double> kstr = kstrs.at(idx);
+  for (int i = 0; i < kstr.size(); i++) {
+    absK = kstr.at(i);
+    if (absK >= 0)
+      sum += absK;
+  }
+
+  // no absk* >= 0
+  if ( kstr.size() == numMs.at(idx) )
+    return -1;
+  else
+    return (sum / ( kstr.size() - numMs.at(idx)) - kstr_ref);
+}
+
+double
+varMer::getTotdK(int idx) {
+  // fprintf(stderr, "getTotdK(%d) called.\n", idx);
+
+  double sum = 0;
+
+  vector<double> dkstr = dkstrs.at(idx);
+  for (int i = 0; i < dkstr.size(); i++) {
+    sum += dkstr.at(i);
+  }
+
+    return sum;
+}

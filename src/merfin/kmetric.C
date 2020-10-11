@@ -19,8 +19,8 @@
 uint64 
 peak = 0;
            
-double
-getKmetric(
+void
+getK(
   		   merylExactLookup   *rlookup,
            merylExactLookup   *alookup,
            kmer                fmer,
@@ -32,7 +32,6 @@ getKmetric(
 
   uint64 fValue = 0;
   uint64 rValue = 0;
-  double kMetric;
 
   rlookup->exists(fmer, fValue);
   rlookup->exists(rmer, rValue);
@@ -46,6 +45,11 @@ getKmetric(
 
   asmK  = (double) (fValue + rValue);
 
+}
+
+double
+getKmetric(double readK, double asmK) {
+  double kMetric;
   if ( readK == 0 ) {
     kMetric = 0;
   } else if ( asmK > readK ) {
@@ -73,6 +77,7 @@ getreadKdef(
      readK = round(readK);
   }
   
+  prob = (double) 1;
   return readK;
 }
 

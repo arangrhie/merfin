@@ -228,8 +228,11 @@ dumpKmetric(char               *outName,
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
   fprintf(stderr, "\nGenerating fasta index.\n");  
-  sfile->generateIndex();  
+  sfile->generateIndex();
+
   int ctgn = sfile->numberOfSequences();
+  
+  sfile = new dnaSeqFile(seqName);
   
   //use at most threads equal to the number of sequences
   if (threads > ctgn) {
@@ -268,7 +271,8 @@ dumpKmetric(char               *outName,
 	while (kiter.nextBase()) {
 	  if (kiter.isValid() == true) {
 		tot++;
-		kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+		getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+		kMetric = getKmetric(readK, asmK);
 		if ( readK == 0 ){
 		  missing++;
 		}
@@ -303,7 +307,6 @@ dumpKmetric(char               *outName,
 	ofstream ofile(outName, ios::out | ios::app); 
 	char filename[64];
 	
-    dnaSeqFile  *seqFile = NULL;
     seqFile = new dnaSeqFile(seqName);
 
     for (uint32 seqId=0; seqFile->loadSequence(seq);seqId++) {
@@ -323,6 +326,7 @@ dumpKmetric(char               *outName,
 
 void
 histKmetric(char               *outName,
+	        char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
@@ -359,8 +363,11 @@ histKmetric(char               *outName,
   }
 
   fprintf(stderr, "\nGenerating fasta index.\n");  
-  sfile->generateIndex();  
+  sfile->generateIndex();
+
   int ctgn = sfile->numberOfSequences();
+  
+  sfile = new dnaSeqFile(seqName);
   
   //use at most threads equal to the number of sequences
   if (threads > ctgn) {
@@ -391,7 +398,8 @@ histKmetric(char               *outName,
 		while (kiter.nextBase()) {
 		  if (kiter.isValid() == true) {
 			kasm++;
-			kMetric = getKmetric(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+			getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+			kMetric = getKmetric(readK, asmK);
 
 				if ( readK == 0 ) {
 				  missing++;
@@ -459,7 +467,8 @@ histKmetric(char               *outName,
 
 
 void
-varMers(dnaSeqFile       *sfile,
+varMers(char			 *seqName,
+        dnaSeqFile       *sfile,
         vcfFile          *vfile,
         merylExactLookup *rlookup,
         merylExactLookup *alookup,
@@ -493,7 +502,7 @@ varMers(dnaSeqFile       *sfile,
   vector<posGT*>  *posGTlist;
   vector<gtAllele*>     *gts;
 
-  string   seqName;
+  string   seqHeader;
   char     fString[65];
   char     rString[65];
   string   kmer;
@@ -514,10 +523,15 @@ varMers(dnaSeqFile       *sfile,
   vector<int>     path;
 
   uint64   varMerId = 0;
+  
+  double RefAvgK;
 
   fprintf(stderr, "\nGenerating fasta index.\n");  
-  sfile->generateIndex();  
+  sfile->generateIndex();
+
   uint64 ctgn = sfile->numberOfSequences();
+  
+  sfile = new dnaSeqFile(seqName);
   
   // temporary sequence to hold ref bases
   char * refTemplate;
@@ -528,11 +542,11 @@ varMers(dnaSeqFile       *sfile,
     sfile->loadSequence(seq);
   
     //  for each seqId
-    seqName = string(seq.name());
+    seqHeader = string(seq.name());
     fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
 
-    //  in case no seq.name() available, ignore this seqName
-    if (mapChrPosGT->find(seqName) == mapChrPosGT->end()) {
+    //  in case no seq.name() available, ignore this seqHeader
+    if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
       fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
       continue;
 	}
@@ -598,10 +612,13 @@ varMers(dnaSeqFile       *sfile,
       //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
       seqMer->score(rlookup, alookup, copyKmerDict);
       //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
+      
+      // store the avgK of the reference to compute the delta
+      RefAvgK = seqMer->getAvgAbsK(0);
 
       //  print to debug
       for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t",
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
           seq.name(),
           rStart,
@@ -610,8 +627,10 @@ varMers(dnaSeqFile       *sfile,
           seqMer->numMs.at(idx),	//  missing
           seqMer->getMinAbsK(idx),
           seqMer->getMaxAbsK(idx),
+          seqMer->getMedAbsK(idx),
           seqMer->getAvgAbsK(idx),
-          seqMer->getMedAbsK(idx)
+          seqMer->getAvgAbsdK(idx, RefAvgK),
+          seqMer->getTotdK(idx)
         );
 
         //  new vcf records
@@ -827,15 +846,17 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
     fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
-    fprintf(stderr, "      varMerID    - unique numbering, starting from 0\n");
-    fprintf(stderr, "      varMerRange - seqName:start-end. position (0-based) of the variant (s), including sequences upstream and downstream of k-1 bp\n");
-    fprintf(stderr, "      varMerSeq   - combination of variant sequence to evalute\n");
-    fprintf(stderr, "      numMissings - total number of missing kmers\n");
-    fprintf(stderr, "      min k*      - minimum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
-    fprintf(stderr, "      max k*      - maximum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
-    fprintf(stderr, "      avg k*      - average of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
-    fprintf(stderr, "      median k*   - median  of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
-    fprintf(stderr, "      record      - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
+    fprintf(stderr, "      varMerID                - unique numbering, starting from 0\n");
+    fprintf(stderr, "      varMerRange             - seqName:start-end. position (0-based) of the variant (s), including sequences upstream and downstream of k-1 bp\n");
+    fprintf(stderr, "      varMerSeq               - combination of variant sequence to evalute\n");
+    fprintf(stderr, "      numMissings             - total number of missing kmers\n");
+    fprintf(stderr, "      min k*                  - minimum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      max k*                  - maximum of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      median k*               - median  of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      avg k*                  - average of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
+    fprintf(stderr, "      avg ref-alt k*          - difference between reference and alternate average k*.\n");
+    fprintf(stderr, "      delta kmer multiplicity - cumulative sum of kmer multiplicity variation. Positive values imply recovered kmers. Negative values overrepresented kmers introduced.\n");
+    fprintf(stderr, "      record          - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
     fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
@@ -947,7 +968,7 @@ main(int argc, char **argv) {
   //  Check report type
   if (reportType == OP_HIST) {
     fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", outName);
-    histKmetric(outName, seqFile, readLookup, asmLookup, copyKmerDict, threads);
+    histKmetric(outName, seqName, seqFile, readLookup, asmLookup, copyKmerDict, threads);
   }
   if (reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", outName);
@@ -964,7 +985,7 @@ main(int argc, char **argv) {
     vcfFile* inVcf = new vcfFile(vcfName);
 
     fprintf(stderr, "-- Generate variant mers and score them.\n");
-    varMers(seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, bykstar, threads);
+    varMers(seqName, seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, bykstar, threads);
 
     delete inVcf;
   }

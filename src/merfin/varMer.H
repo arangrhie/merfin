@@ -52,6 +52,8 @@ public:
   double  getMaxAbsK(int idx);
   double  getAvgAbsK(int idx);  // avg. k*
   double  getMedAbsK(int idx);  // median k*
+  double  getAvgAbsdK(int idx, double RefAvgK);  // avg. k* difference between reference and alternate
+  double  getTotdK(int idx);  // delta k* when variant is applied
 
   static void   setPeak(uint64 p = 0) { peak   = p;  };
   static uint64 getPeak()         { return peak; };
@@ -63,7 +65,8 @@ public:
   vector< string >          seqs;   //  sequence combinations
   vector< uint32 >          numMs;  //  num missing kmers. follows the order of seqs
   vector< vector<double> >  kstrs;  //  k* values, kstrs.at(0) is the k* value of the first seq
-  multimap<double, int >    avgKs;  //  avg |k*|,  sorted from lowest to greatest, with idx on the second
+  vector< vector<double> >  dkstrs; //  dk* values, kstrs.at(0) is the k* value of the first seq
+  multimap<double, int, greater <int> >    avgKs;  //  avg |k*|,  sorted from lowest to greatest, with idx on the second
   posGT*               posGt;
   vector< uint32 >     order;
 
