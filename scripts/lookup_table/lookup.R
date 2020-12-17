@@ -714,7 +714,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
 args<-commandArgs(TRUE)
 
 if(length(args) < 4) {
-	cat("USAGE: lookup.R histogram_file k-mer_length output_dir hom=TRUE/FALSE\n")
+	cat("USAGE: lookup.R histogram_file k-mer_length output_dir hap=TRUE/FALSE\n")
 	quit()
 } else{
 
