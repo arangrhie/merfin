@@ -170,7 +170,7 @@ eval_model<-function(kmer_hist_orig, nls1, nls2, round, foldername){
     {
       mdir = paste(foldername, "/round", round, ".1", sep="")
       dir.create(mdir, showWarnings=FALSE)
-      report_results(kmer_prof_orig,kmer_prof_orig, k, (list(nls1, nls1score)) , mdir)
+      report_results(kmer_prof_orig,kmer_prof_orig, k, (list(nls1, nls1score)) , mdir, ploidy)
     }
   }
   else
@@ -190,7 +190,7 @@ eval_model<-function(kmer_hist_orig, nls1, nls2, round, foldername){
     {
       mdir = paste(foldername, "/round", round, ".2", sep="")
       dir.create(mdir, showWarnings=FALSE)
-      report_results(kmer_prof_orig, kmer_prof_orig, k, (list(nls2, nls2score)) , mdir)
+      report_results(kmer_prof_orig, kmer_prof_orig, k, (list(nls2, nls2score)) , mdir, ploidy)
     }
   }
   else
@@ -247,7 +247,7 @@ eval_model<-function(kmer_hist_orig, nls1, nls2, round, foldername){
 ## Wrapper function to try fitting 4 peak model with 2 forms
 ###############################################################################
 
-estimate_Genome_4peak2<-function(kmer_hist_orig, x, y, k, round, foldername, haploid){
+estimate_Genome_4peak2<-function(kmer_hist_orig, x, y, k, round, foldername, ploidy){
 
   ## First we see what happens when the max peak is the kmercoverage (typically the homozygous peak) for the plot
   numofKmers   = sum(as.numeric(x)*as.numeric(y))
@@ -256,7 +256,7 @@ estimate_Genome_4peak2<-function(kmer_hist_orig, x, y, k, round, foldername, hap
   
   if (VERBOSE) { cat(paste("trying with kmercov: ", estKmercov1, "\n")) }
 
-  if (!(haploid=="TRUE")){
+  if (!(ploidy==1)){
 
     nls1    = nls_4peak(x, y, k, estKmercov1, estLength1, MAX_ITERATIONS)
 
@@ -295,7 +295,7 @@ X_format<-function(num) {
 ## Report results and make plots
 ###############################################################################
 
-report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, haploid)
+report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, ploidy)
 {
   x=kmer_hist_orig[[1]]
   y=kmer_hist_orig[[2]]
@@ -451,7 +451,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
     
     ## find kmers that fit the 2 peak model (no repeats)
 
-    if (!(haploid=="TRUE")){
+    if (!(ploidy==1)){
 
       unique_hist <- (2 * (1 - amd) * (1 - (1 - ahet)^k))                         * dnbinom(x, size = akcov     / adups, mu = akcov)     * amlen +
         ((amd * (1 - (1 - ahet)^k)^2) + (1 - amd) * ((1 - ahet)^k))  * dnbinom(x, size = akcov * 2 / adups, mu = akcov * 2) * amlen 
@@ -623,7 +623,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
 
   colors <- c("black","red","green","purple","blue")
 
-  if (!(haploid=="TRUE")){
+  if (!(ploidy==1)){
 
   	fitted_hist=data.frame(cbind(one_hist,two_hist,thr_hist,fou_hist))
   	
@@ -713,23 +713,30 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, hap
 
 args<-commandArgs(TRUE)
 
-if(length(args) < 4) {
-	cat("USAGE: lookup.R histogram_file k-mer_length output_dir hap=TRUE/FALSE\n")
+if(length(args) < 3) {
+	cat("USAGE: lookup.R histogram_file k-mer_length output_dir [ploidy] [verbose]\n")
+	cat("ploidy=1|2\n")
+	cat("verbose=0|1\n")
 	quit()
 } else{
 
-histfile   <- args[[1]]
-k          <- as.numeric(args[[2]])
-foldername <- args[[3]]
+	histfile   <- args[[1]]
+	k          <- as.numeric(args[[2]])
+	foldername <- args[[3]]
 
-if (args[[4]]==""){
-haploid    <- "FALSE"
-} else {
-haploid    <- args[[4]]
+	if (length(args) > 3){
+		ploidy <- args[[4]]
+	} else {
+		ploidy <- 2
+	}
 }
 
-if (haploid=="TRUE"){n=2}else{n=4}
+if (ploidy==1){n=2}else{n=4}
 
+if(length(args) > 4) {
+	verbose <- as.numeric(args[[5]])
+} else {
+	verbose <- as.numeric(0)
 }
 
 ## Colors for plots
@@ -762,7 +769,7 @@ SCORE_HET_FOLD_DIFFERENCE = 10
 
 maxCovGenomeLen = -1
   
-VERBOSE = 0
+VERBOSE = verbose
 
 dir.create(foldername, showWarnings=FALSE)
 
@@ -805,7 +812,7 @@ while (round < NUM_ROUNDS)
   y <- kmer_prof[start:maxCovIndex, 2]
   
   model_4peaks <-
-    estimate_Genome_4peak2(kmer_prof, x, y, k, round, foldername, haploid)
+    estimate_Genome_4peak2(kmer_prof, x, y, k, round, foldername, ploidy)
   
   if (!is.null(model_4peaks[[1]])) {
     cat(paste("converged. score: ", model_4peaks[[2]]$all[[1]]), sep = "\n")
@@ -814,7 +821,7 @@ while (round < NUM_ROUNDS)
     {
       mdir = paste(foldername, "/round", round, sep = "")
       dir.create(mdir, showWarnings = FALSE)
-      report_results(kmer_prof, kmer_prof_orig, k, model_4peaks, mdir)
+      report_results(kmer_prof, kmer_prof_orig, k, model_4peaks, mdir, ploidy)
     }
   } else {
     cat(paste("unconverged"))
@@ -887,4 +894,4 @@ while (round < NUM_ROUNDS)
   round <- round + 1
 }
 ## Report the results, note using the original full profile
-report_results(kmer_prof, kmer_prof_orig, k, best_container, foldername, haploid)
+report_results(kmer_prof, kmer_prof_orig, k, best_container, foldername, ploidy)
