@@ -171,11 +171,11 @@ if ! [[ -e "polished_${ASM}" ]]; then
 		wait_for="--dependency=afterok:`awk '{printf $1","}' freebayes_jid | sed 's/.$//'`"
 		
 		cpus=2
-		name=$1.consensus
+		name=${1}.consensus
 		script=$merfin/variantCaller_cns.sh
 		args=${ASM}
 		walltime=2-0
-		log=logs/$name.%A_%a.log
+		log=logs/${name}.%A_%a.log
 
 		echo "\
 		sbatch --partition=vgl -D $PWD $wait_for --cpus-per-task=$cpus --job-name=$name --time=$walltime --error=$log --output=$log $script $args"
