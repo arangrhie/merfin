@@ -155,7 +155,7 @@ if ! [[ -e "polished_${ASM}" ]]; then
 		mkdir -p logs
 		mkdir -p vcfs
 		
-		rm -f freebayes_jid
+		rm -f arrow_jid
 
 		for fl in $(ls slices)
 		do
@@ -164,13 +164,13 @@ if ! [[ -e "polished_${ASM}" ]]; then
 			out="${filename%.*}"
 	
 			log=logs/${ASM%.*}.${fl%.*}.%A.log
-			sbatch --partition=vgl --nice=10000 --cpus-per-task=${N_PROC} --error=$log --output=$log $merfin/variantCaller.sh aligned_reads.bam ${ASM%.*} ${fl} ${N_PROC} | awk '{print $4}' >> freebayes_jid
+			sbatch --partition=vgl --nice=10000 --cpus-per-task=${N_PROC} --error=$log --output=$log $merfin/variantCaller.sh aligned_reads.bam ${ASM%.*} ${fl} ${N_PROC} | awk '{print $4}' >> arrow_jid
 
 		done
 		
-		wait_for="--dependency=afterok:`awk '{printf $1","}' freebayes_jid | sed 's/.$//'`"
+		wait_for="--dependency=afterok:`awk '{printf $1","}' arrow_jid | sed 's/.$//'`"
 		
-		cpus=2
+		cpus=1
 		name=${1}.consensus
 		script=$merfin/variantCaller_cns.sh
 		args=${ASM}
