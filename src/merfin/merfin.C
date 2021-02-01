@@ -614,7 +614,7 @@ varMers(char			 *seqName,
       //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
       
       // store the avgK of the reference to compute the delta
-      RefAvgK = seqMer->getAvgAbsK(0);
+      //RefAvgK = seqMer->getAvgAbsK(0);
 
       //  print to debug
       for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
@@ -629,7 +629,7 @@ varMers(char			 *seqName,
           seqMer->getMaxAbsK(idx),
           seqMer->getMedAbsK(idx),
           seqMer->getAvgAbsK(idx),
-          seqMer->getAvgAbsdK(idx, RefAvgK),
+          //seqMer->getAvgAbsdK(idx, RefAvgK),
           seqMer->getTotdK(idx)
         );
 
@@ -691,7 +691,7 @@ main(int argc, char **argv) {
   static uint64   ipeak       = 0;
   bool            skipMissing = false;
   bool            nosplit     = false;
-  bool            bykstar     = false;
+  bool            bykstar     = true;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
@@ -741,8 +741,8 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       nosplit = true;
 
-    } else if (strcmp(argv[arg], "-bykstar") == 0) {
-      bykstar = true;
+    } else if (strcmp(argv[arg], "-disable-kstar") == 0) {
+      bykstar = false;
 
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
@@ -838,9 +838,9 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
     fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");   
-    fprintf(stderr, "             -by-kstar  output variants by kstar. *experimental*\n");   
-    fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
-    fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
+    fprintf(stderr, "             -disable-kstar  output variants by kstar. *experimental*\n");   
+    //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
+    //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
@@ -859,8 +859,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "      record          - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
-    fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
+    //fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
+    //fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
