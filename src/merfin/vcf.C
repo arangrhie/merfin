@@ -167,7 +167,7 @@ vcfFile::loadFile(char *inName) {
   uint32 Llen = 0;
   uint32 Lmax = 0;
 
-  FILE *F = AS_UTL_openInputFile(inName);
+  compressedFileReader F(inName);
 
   vcfRecord *record = NULL;
   string chr;
@@ -175,7 +175,7 @@ vcfFile::loadFile(char *inName) {
 
   uint64 excluded = 0;
 
-  while (AS_UTL_readLine(L, Llen, Lmax, F)) {
+  while (AS_UTL_readLine(L, Llen, Lmax, F.file())) {
 
     // Header line?
     if (L[0] == '#') {
@@ -212,8 +212,6 @@ vcfFile::loadFile(char *inName) {
     }
     prevChr = chr;
   }
-
-  AS_UTL_closeFile(F, inName);
 
   delete [] L;
 
