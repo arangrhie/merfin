@@ -19,7 +19,7 @@ cat ${output}.temp.reshaped.header.vcf ${output}.temp.reshaped.vcf > ${output}.t
 
 rm ${output}.temp.reshaped.header.vcf ${output}.temp.reshaped.vcf
 
-bcftools annotate -h $merfin/extra_header.vcf ${output}.temp.reshaped.combined.vcf > ${output}.temp.reshaped.vcf
+bcftools annotate -h $merfin/reformat_arrow/extra_header.vcf ${output}.temp.reshaped.combined.vcf > ${output}.temp.reshaped.vcf
 
 bcftools view -h ${output}.temp.reshaped.vcf | sed 's/\tINFO/\tINFO\tFORMAT\tIND/g' > ${output}.reshaped.vcf
 
