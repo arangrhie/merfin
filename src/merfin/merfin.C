@@ -44,9 +44,9 @@ func_t getreadK;
 
 uint64 getIndex(vector<string> v, string K) 
 { 
-    auto it = find(v.begin(), v.end(), K); 
-    int index = distance(v.begin(), it);  
-    return index;
+  auto it = find(v.begin(), v.end(), K); 
+  int index = distance(v.begin(), it);  
+  return index;
 } 
 
 char*
@@ -241,68 +241,66 @@ dumpKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
-    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
-    for (uint64 seqId=0; seqId<ctgn;seqId++)
-    {
+#pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
+  for (uint64 seqId=0; seqId<ctgn;seqId++)
+  {
 
-	#pragma omp critical
-	{
-	sfile->loadSequence(seq);      
+#pragma omp critical
+    {
+      sfile->loadSequence(seq);      
     }
 
     kmerIterator kiter(seq.bases(), seq.length());
     uint64 missing = 0;
     uint64 tot = 0;
     
-	char filename[64];
+    char filename[64];
 
-	FILE *out;
-	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
-	
-	auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
-	if (!p.second)
-	{
-	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
-	  exit (-1);	  
-	}
-	
-	out = fopen(filename, "w");
+    FILE *out;
+    sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
 
-	while (kiter.nextBase()) {
-	  if (kiter.isValid() == true) {
-		tot++;
-		getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-		kMetric = getKmetric(readK, asmK);
-		if ( readK == 0 ){
-		  missing++;
-		}
+    auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
+    if (!p.second)
+    {
+      fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
+      exit (-1);	  
+    }
+    
+	  out = fopen(filename, "w");
 
-		if ( skipMissings )  continue;
+  	while (kiter.nextBase()) {
+	    if (kiter.isValid() == true) {
+  		tot++;
+  		getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+  		kMetric = getKmetric(readK, asmK);
+  		if ( readK == 0 ){
+  		  missing++;
+  		}
 
-		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+	  	if ( skipMissings )  continue;
+
+  		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
 				 seq.name(),
 				 kiter.position(),
 				 readK,
 				 asmK,
 				 kMetric
 				 );
-
-
-	  }
-	}
-	fclose(out);
-	#pragma omp critical
-	{
-		tot_missing+=missing;
-		#pragma omp flush(tot_missing)
-		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+      }
+  	}
+  	fclose(out);
+#pragma omp critical
+  	{
+  		tot_missing+=missing;
+#pragma omp flush(tot_missing)
+  		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
 				 seq.name(),
 				 missing,
 				 tot_missing,
 				 tot
 				 );
-	}		
-  }	
+	  }
+  }
 
 	ofstream ofile(outName, ios::out | ios::app); 
 	char filename[64];
@@ -326,7 +324,7 @@ dumpKmetric(char               *outName,
 
 void
 histKmetric(char               *outName,
-	        char			   *seqName,
+            char		      	   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
