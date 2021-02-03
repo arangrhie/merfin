@@ -527,17 +527,17 @@ varMers(char			       *dnaSeqName,
       {
         sfile->findSequence(seqId);
         sfile->loadSequence(seq);
-        fprintf(stderr, "Load\tseqID: %u\tseq: %s\n", seqId, seq.ident()); 
+        //  printf(stderr, "Load\tseqID: %u\tseq: %s\n", seqId, seq.ident()); 
       }
     
       // in case this seq has no variants, ignore this seq
       if (mapChrPosGT->find(string(seq.ident())) == mapChrPosGT->end()) {
-        //  fprintf(stderr, "No variants found in vcf for contig \'%s\'. Skipping.\n", seq.ident());
+        fprintf(stderr, "No variants found in vcf for contig \'%s\'. Skipping.\n", seq.ident());
         continue;
       }
 
       //  for each seqId
-      //  fprintf(stderr, "\nProcessing \'%s\'\n", seq.ident());
+      fprintf(stderr, "Processing \'%s\'\n", seq.ident());
       
       //  get chr specific posGTs
       vector<posGT*>  *posGTlist = mapChrPosGT->at(seq.ident());
@@ -678,12 +678,12 @@ varMers(char			       *dnaSeqName,
 
 #pragma omp critical
       {
-        fprintf(stderr, "[DEBUG] :: Writing output from %d - %s : %s\n", seqId, seq.ident(), tmpDebugName.c_str());
+        //  fprintf(stderr, "[DEBUG] :: Writing output from %d - %s : %s\n", seqId, seq.ident(), tmpDebugName.c_str());
         ifstream tmpFileI(tmpDebugName, std::ios_base::binary);
         if (tmpFileI.is_open()) {
           oDebug << tmpFileI.rdbuf();
           tmpFileI.close();
-          //  remove(tmpDebugName.c_str());
+          remove(tmpDebugName.c_str());
         } else {
           fprintf(stderr, "Unable to open file %s\n", tmpDebugName.c_str());
         }
@@ -965,7 +965,7 @@ main(int argc, char **argv) {
 
   // Open asm kmers, build a lookup table.
   
-  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
+  fprintf(stderr, "\n-- Loading kmers from '%s' into lookup table.\n", seqDBname);
   merylFileReader*  asmDB      = new merylFileReader(seqDBname);
   merylExactLookup* asmLookup = new merylExactLookup();
 
