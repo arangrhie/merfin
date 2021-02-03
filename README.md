@@ -4,7 +4,7 @@ k-mer-based assembly and variant calling evaluation for improved consensus accur
 
 ## Installation
 
-* Required: git v.2.12 or higher, OMP (only for parallelization)
+* Required: git >=v.2.12, gcc >=v7.1 with OMP (only for parallelization)
 
 ```
 git clone https://github.com/arangrhie/merfin.git
