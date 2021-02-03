@@ -28,6 +28,7 @@ SOURCES      := utility/src/utility/edlib.C \
                 utility/src/utility/kmers.C \
                 \
                 utility/src/utility/bits.C \
+                utility/src/utility/bits-wordArray.C \
                 \
                 utility/src/utility/hexDump.C \
                 utility/src/utility/md5.C \
@@ -59,11 +60,6 @@ SRC_INCDIRS  := . \
 SUBMAKEFILES := merfin/merfin.mk \
                 meryl/src/meryl/meryl.mk
 
-#                meryl/src/meryl-simple/meryl-simple.mk \
-#                meryl/src/meryl-import/meryl-import.mk \
-#                meryl/src/meryl-lookup/meryl-lookup.mk \
-#                meryl/src/meryl-check/meryl-check.mk
-
-ifeq ($(BUILDTESTS), 1)
-SUBMAKEFILES += tests/merylCountArrayTest.mk
-endif
+#ifeq ($(BUILDTESTS), 1)
+#SUBMAKEFILES += tests/merylCountArrayTest.mk
+#endif

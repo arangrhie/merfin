@@ -383,8 +383,8 @@ splitFields::split(const char *line, char delim) {
     if (line[_charsLen++] == delim)
       _wordsLen++;
 
-  resizeArray(_words, 0, _wordsMax, _wordsLen + 1, resizeArray_doNothing);
-  resizeArray(_chars, 0, _charsMax, _charsLen + 1, resizeArray_doNothing);
+  resizeArray(_words, 0, _wordsMax, _wordsLen + 1);
+  resizeArray(_chars, 0, _charsMax, _charsLen + 1);
 
   memset(_words, 0,    sizeof(char *) * (_wordsLen + 1));
   memcpy(_chars, line, sizeof(char)   * (_charsLen + 1));

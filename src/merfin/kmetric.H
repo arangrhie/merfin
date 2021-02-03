@@ -24,6 +24,8 @@
 #include "types.H"
 #include "kmers.H"
 
+using namespace std;
+
 extern uint64 peak;
 
 typedef double (*func_t)(
