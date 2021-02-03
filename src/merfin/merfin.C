@@ -227,6 +227,9 @@ dumpKmetric(char               *outName,
 
   compressedFileWriter *k_dump   = new compressedFileWriter(outName);
 
+  fprintf(stderr, "\nGenerating fasta index.\n");  
+  sfile->generateIndex();
+
   int ctgn = sfile->numberOfSequences();
   
   //use at most threads equal to the number of sequences
@@ -348,6 +351,9 @@ histKmetric(char               *outName,
     overHist[ii] = 0;
     undrHist[ii] = 0;
   }
+
+  fprintf(stderr, "\nGenerating fasta index.\n");  
+  sfile->generateIndex();
 
   int ctgn = sfile->numberOfSequences();
   
