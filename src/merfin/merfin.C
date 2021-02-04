@@ -487,12 +487,8 @@ varMers(char			       *dnaSeqName,
   
   map<string, vector<posGT*>*> *mapChrPosGT = vfile->_mapChrPosGT;
 
-  dnaSeq   seq;
-  
   uint32   pos;
   uint32   K_PADD = ksize - 1;
-
-  uint64   varMerId = 0;
   
   fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();
@@ -519,10 +515,11 @@ varMers(char			       *dnaSeqName,
     if ( ii + chunks > ctgn ) chunkLeft = ctgn - ii;
     fprintf(stderr, "Reading sequence %u - %u  ... \n", ii, ii+chunkLeft);
     
-#pragma omp parallel for
+#pragma omp parallel for num_threads(threads) schedule(dynamic)
     for (uint32 seqId = ii; seqId < ii + chunkLeft; seqId++) {
     //  for (uint32 seqId=0; seqId<ctgn; seqId++)  {
       dnaSeq   seq;
+      uint64   varMerId = 0;
 #pragma omp critical
       {
         sfile->findSequence(seqId);
