@@ -213,15 +213,8 @@ dumpKmetric(char               *outName,
             vector<string>      copyKmerDict,
             int                 threads) {
 
-  dnaSeq seq;
   double prob;
-  double asmK;
-  double readK;
-  double kMetric;
   uint64 tot_missing = 0;
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  kmerIterator kiter;
   map<string, uint64> order;
   string tmp = tmpnam(nullptr);
 
@@ -239,10 +232,15 @@ dumpKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
-#pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
+#pragma omp parallel for reduction(+:tot_missing) num_threads(threads) schedule(dynamic)
   for (uint64 seqId=0; seqId<ctgn;seqId++)
   {
-
+    dnaSeq seq;
+    double asmK;
+    double readK;
+    double kMetric;
+    uint64 fValue = 0;
+    uint64 rValue = 0;
 #pragma omp critical
     {
       sfile->loadSequence(seq);      
@@ -291,7 +289,6 @@ dumpKmetric(char               *outName,
 #pragma omp critical
     {
       tot_missing+=missing;
-#pragma omp flush(tot_missing)
       fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
           seq.ident(),
           missing,
@@ -305,6 +302,7 @@ dumpKmetric(char               *outName,
   char filename[64];
 
   sfile = new dnaSeqFile(seqName);
+  dnaSeq seq;
   for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
     sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.ident()));
     order.erase (seq.ident());
@@ -323,16 +321,9 @@ histKmetric(char               *outName,
             vector<string>      copyKmerDict,
             int                 threads) {
 
-  dnaSeq seq;
   double prob = 1;
-  double asmK;
-  double readK;
-  double kMetric;
   uint64 tot_missing = 0;
   uint64 tot_kasm = 0;
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  kmerIterator kiter;
   uint32 ksize = kmer::merSize();
   
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
@@ -364,12 +355,18 @@ histKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-  #pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
-  {
 
-#pragma omp for reduction (+:overcpy) schedule(static,1)
+#pragma omp parallel for reduction (+:overcpy,tot_missing,tot_kasm) num_threads(threads) schedule(dynamic)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
+
+    dnaSeq seq;
+    double asmK;
+    double readK;
+    double kMetric;
+    uint64 fValue = 0;
+    uint64 rValue = 0;
+
 #pragma omp critical
       {
         sfile->loadSequence(seq);
@@ -406,7 +403,6 @@ histKmetric(char               *outName,
       {
         tot_missing+=missing;
         tot_kasm+=kasm;
-#pragma omp flush(tot_missing,tot_kasm)
 
         for(uint64 ii = histMax - 1; ii > 0; ii--) {
           undrHist[ii] += undrHist_pvt[ii];
@@ -429,7 +425,6 @@ histKmetric(char               *outName,
             );
       }
     }
-  }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
     if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
@@ -534,7 +529,7 @@ varMers(char			       *dnaSeqName,
       }
 
       //  for each seqId
-      fprintf(stderr, "Processing \'%s\'\n", seq.ident());
+      fprintf(stderr, "Processing \'%s\' on thread  %i\n", seq.ident(),omp_get_thread_num());
       
       //  get chr specific posGTs
       vector<posGT*>  *posGTlist = mapChrPosGT->at(seq.ident());
