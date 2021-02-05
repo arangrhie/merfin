@@ -334,7 +334,6 @@ histKmetric(char               *outName,
   uint64   histMax  = 32 * 1024 * 1024;
   uint64 * overHist = new uint64[histMax];	// positive k* values, overHist[0] = bin 0.0 ~ 0.2
   uint64 * undrHist = new uint64[histMax];	// negative k* values
-  uint64   missing  = 0;			// missing kmers (0) 
   double   roundedReadK = 0;
   double   overcpy  = 0;
 
@@ -355,8 +354,8 @@ histKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-
-#pragma omp parallel for reduction (+:overcpy,tot_missing,tot_kasm) num_threads(threads) schedule(dynamic)
+   uint64 cid =0;
+#pragma omp parallel for reduction (+:overcpy) num_threads(threads) schedule(dynamic)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
 
@@ -416,7 +415,8 @@ histKmetric(char               *outName,
         err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
         qv = -10*log10(err);
 
-        fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
+        fprintf(stderr, "%i\t%s\t%lu\t%lu\t%lu\t%.2f\n",
+            cid++,
             seq.ident(),
             missing,
             tot_missing,
@@ -529,7 +529,7 @@ varMers(char			       *dnaSeqName,
       }
 
       //  for each seqId
-      fprintf(stderr, "Processing \'%s\' on thread  %i\n", seq.ident(),omp_get_thread_num());
+      fprintf(stderr, "Processing \'%s\'\n", seq.ident());
       
       //  get chr specific posGTs
       vector<posGT*>  *posGTlist = mapChrPosGT->at(seq.ident());
