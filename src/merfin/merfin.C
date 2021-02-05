@@ -354,7 +354,6 @@ histKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-   uint64 cid =0;
 #pragma omp parallel for reduction (+:overcpy) num_threads(threads) schedule(dynamic)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
@@ -415,8 +414,7 @@ histKmetric(char               *outName,
         err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
         qv = -10*log10(err);
 
-        fprintf(stderr, "%i\t%s\t%lu\t%lu\t%lu\t%.2f\n",
-            cid++,
+        fprintf(stderr, "t%s\t%lu\t%lu\t%lu\t%.2f\n",
             seq.ident(),
             missing,
             tot_missing,
