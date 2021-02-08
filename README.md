@@ -45,7 +45,7 @@ Once the filtered `.vcf` is generated, the assembly can be polished with:
 ```
 bcftools view -Oz $merfin_output.polish.vcf > $merfin_output.polish.vcf.gz #bgzip merfin output
 bcftools index $merfin_output.polish.vcf.gz
-bcftools consensus $merfin_output.polish.vcf.gz -f assembly.fasta -H 2 > polished_assembly.fasta # -H 2 applies only alt alleles at each position
+bcftools consensus $merfin_output.polish.vcf.gz -f assembly.fasta -H 1 > polished_assembly.fasta # -H 1 applies only first allele from GT at each position
 ```
 
 Two set of similar scripts for further parallelization on HPC (slurm) are available under `scripts/parallel1` and `scripts/parallel2`.
