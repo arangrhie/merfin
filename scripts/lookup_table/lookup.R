@@ -672,13 +672,14 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, plo
   plot_table <- NULL
   
   fitted_hist[(akcov*5):length(one_hist),1:ncol(fitted_hist)] <- 0
+  
   fitted_hist <- na.zero(fitted_hist)
   
   for (i in 1:(akcov*5-1)){
     
-    totalP<-sum(na.zero(error_kmers[i]/total_kmers), rowSums(fitted_hist[i,]))
+    totalP<-sum(na.zero(error_kmers[i]), rowSums(fitted_hist[i,]*amlen))
  
-    prob<-c(na.zero(error_kmers[i]/total_kmers/totalP),as.numeric(fitted_hist[i,])/totalP)
+    prob<-c(na.zero(error_kmers[i]/totalP),as.numeric(fitted_hist[i,]*amlen)/totalP)
     
     plot_table<-rbind(plot_table,prob)
       
