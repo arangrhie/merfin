@@ -24,7 +24,7 @@ As a rule of thumb, the `-peak` should be:
 - haploid, if the reference used for read mapping and variant calling contains both the primary and the haplotigs, or both haplotypes of a trio
 - diploid (i.e. twice the haploid peak), for haploid representations of diploid genomes
 
-Optionally, a custom table of probabilities can be used as input (`-lookup`), also generated using the script under `scripts/genomescope`. This is still experimental.
+Optionally, to improve the accuracy of all K* associated statistics, a custom table of kmer copy numbers with associated multiplicities and probabilities can be provided (`-lookup`), also generated using the script under `scripts/genomescope`. This is still experimental.
 
 ### Assess collapses/duplications and per base QV ###
 
