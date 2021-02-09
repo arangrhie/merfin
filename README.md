@@ -18,13 +18,13 @@ make -j 12
 
 Merfin can be used to assess collapsed or duplicated region of the assembly (`-hist`, `-dump`) or to evaluate variant calls (`-vmer`). QV estimates for all scaffolds will also be generated with `-hist` and `-dump`.
 
-In all cases a haploid/diploid peak estimate must be provided (`-peak`), either from the kmer histogram, or computed using the GenomeScope 2.0 model available under `scripts/lookup` (kcov).
+In all cases a haploid/diploid peak estimate must be provided (`-peak`), either from the kmer histogram, or computed using the script `lookup.R` available under `scripts/lookup` (kcov).
 
 As a rule of thumb, the `-peak` should be:
 - haploid, if the reference used for read mapping and variant calling contains both the primary and the haplotigs, or both haplotypes of a trio
 - diploid (i.e. twice the haploid peak), for haploid representations of diploid genomes
 
-Optionally, a custom table of kmer copy numbers with associated multiplicities and probabilities can be provided (`-lookup`), also generated using the script under `scripts/lookup`. This is recommended and can significantly improve the accuracy of all analyses.
+Optionally, a custom lookup table of kmer copy numbers with associated multiplicities and probabilities can be provided (`-lookup`). The lookup table is also generated using the script `lookup.R` under `scripts/lookup`. This is recommended, and can significantly improve the accuracy of all analyses.
 
 ### Assess collapses/duplications and per base QV ###
 
