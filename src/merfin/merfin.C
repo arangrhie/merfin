@@ -463,7 +463,7 @@ histKmetric(char               *outName,
   fprintf(stderr, "Merfin QV*: %.2f\n", qv);
   fprintf(stderr, "*** Note this QV is valid only if -seqmer was generated with -sequence ***\n\n");
   fprintf(stderr, "*** Missing QV only considers missing kmers as errors. Merfin QV* includes overrepresented kmers. ***\n\n");
-  fprintf(stderr, "*** When the lookup table is provided, missing QV includes weighted low frequency kmers, otherwise it is identical to Merqury QV ***\n\n");
+  fprintf(stderr, "*** When the lookup table is provided, missing QV includes weighted low frequency kmers, otherwise it is identical to Merqury QV. ***\n\n");
 }
 
 
