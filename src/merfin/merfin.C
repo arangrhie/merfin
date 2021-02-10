@@ -44,9 +44,9 @@ func_t getreadK;
 
 uint64 getIndex(vector<string> v, string K) 
 { 
-  auto it = find(v.begin(), v.end(), K); 
-  int index = distance(v.begin(), it);  
-  return index;
+    auto it = find(v.begin(), v.end(), K); 
+    int index = distance(v.begin(), it);  
+    return index;
 } 
 
 char*
@@ -205,7 +205,7 @@ traverse(uint32          idx,
 
 void
 dumpKmetric(char               *outName,
-    			  char      			   *seqName,
+			char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
@@ -232,6 +232,8 @@ dumpKmetric(char               *outName,
 
   int ctgn = sfile->numberOfSequences();
   
+  sfile = new dnaSeqFile(seqName);
+  
   //use at most threads equal to the number of sequences
   if (threads > ctgn) {
   	threads = ctgn;
@@ -239,84 +241,92 @@ dumpKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
-#pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
-  for (uint64 seqId=0; seqId<ctgn;seqId++)
-  {
-
-#pragma omp critical
+    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
+    for (uint64 seqId=0; seqId<ctgn;seqId++)
     {
-      sfile->loadSequence(seq);      
+
+	#pragma omp critical
+	{
+	sfile->loadSequence(seq);      
     }
 
     kmerIterator kiter(seq.bases(), seq.length());
     uint64 missing = 0;
     uint64 tot = 0;
+    
+	char filename[64];
 
-    char filename[64];
+	FILE *out;
+	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
+	
+	auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
+	if (!p.second)
+	{
+	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
+	  exit (-1);	  
+	}
+	
+	out = fopen(filename, "w");
 
-    FILE *out;
-    sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
+	while (kiter.nextBase()) {
+	  if (kiter.isValid() == true) {
+		tot++;
+		getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+		kMetric = getKmetric(readK, asmK);
+		if ( readK == 0 ){
+		  missing++;
+		}
 
-    auto p = order.insert(pair<string, uint64>(seq.ident(), seqId));
+		if ( skipMissings )  continue;
 
-    if (!p.second)
-    {
-      fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.ident());
-      exit (-1);	  
+		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+				 seq.name(),
+				 kiter.position(),
+				 readK,
+				 asmK,
+				 kMetric
+				 );
+
+
+	  }
+	}
+	fclose(out);
+	#pragma omp critical
+	{
+		tot_missing+=missing;
+		#pragma omp flush(tot_missing)
+		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+				 seq.name(),
+				 missing,
+				 tot_missing,
+				 tot
+				 );
+	}		
+  }	
+
+	ofstream ofile(outName, ios::out | ios::app); 
+	char filename[64];
+	
+    sfile = new dnaSeqFile(seqName);
+
+    for (uint32 seqId=0; sfile->loadSequence(seq);seqId++) {
+    
+		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.name()));
+		
+		order.erase (seq.name());
+
+		ifstream ifile(filename, ios::in); 
+  
+		ofile << ifile.rdbuf(); 
+		
+		remove(filename);
+
     }
-
-    out = fopen(filename, "w");
-
-    while (kiter.nextBase()) {
-      if (kiter.isValid() == true) {
-        tot++;
-        getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-        kMetric = getKmetric(readK, asmK);
-        if ( readK == 0 ){
-          missing++;
-        }
-
-        if ( skipMissings )  continue;
-
-        fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-            seq.ident(),
-            kiter.position(),
-            readK,
-            asmK,
-            kMetric
-            );
-      }
-    }
-    fclose(out);
-#pragma omp critical
-    {
-      tot_missing+=missing;
-#pragma omp flush(tot_missing)
-      fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
-          seq.ident(),
-          missing,
-          tot_missing,
-          tot
-          );
-    }
-  }
-
-  ofstream ofile(outName, ios::out | ios::app); 
-  char filename[64];
-
-  sfile = new dnaSeqFile(seqName);
-  for (uint32 seqId=0; sfile->loadSequence(seq); seqId++) {
-    sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.ident()));
-    order.erase (seq.ident());
-    ifstream ifile(filename, ios::in); 
-    ofile << ifile.rdbuf(); 
-    remove(filename);
-  }
 }
 
 void
 histKmetric(char               *outName,
-            char		      	   *seqName,
+	        char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
@@ -357,6 +367,8 @@ histKmetric(char               *outName,
 
   int ctgn = sfile->numberOfSequences();
   
+  sfile = new dnaSeqFile(seqName);
+  
   //use at most threads equal to the number of sequences
   if (threads > ctgn) {
   	threads = ctgn;
@@ -366,77 +378,77 @@ histKmetric(char               *outName,
 
   #pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
   {
-
-#pragma omp for reduction (+:overcpy) schedule(static,1)
+    
+    #pragma omp for reduction (+:overcpy) schedule(static,1)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
-#pragma omp critical
-      {
-        sfile->loadSequence(seq);
-      }
+		#pragma omp critical
+		{
+		sfile->loadSequence(seq);
+		}
+	
+		kmerIterator kiter(seq.bases(), seq.length());
+		uint64 missing = 0;
+		uint64 kasm = 0;
+		double err;
+		double qv;
+		uint64 * undrHist_pvt = new uint64[histMax];
+		uint64 * overHist_pvt = new uint64[histMax];
 
-      kmerIterator kiter(seq.bases(), seq.length());
-      uint64 missing = 0;
-      uint64 kasm = 0;
-      double err;
-      double qv;
-      uint64 * undrHist_pvt = new uint64[histMax];
-      uint64 * overHist_pvt = new uint64[histMax];
+		while (kiter.nextBase()) {
+		  if (kiter.isValid() == true) {
+			kasm++;
+			getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+			kMetric = getKmetric(readK, asmK);
 
-      while (kiter.nextBase()) {
-        if (kiter.isValid() == true) {
-          kasm++;
-          getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-          kMetric = getKmetric(readK, asmK);
+				if ( readK == 0 ) {
+				  missing++;
+				} else if ( readK < asmK ) {
+				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+				  //  TODO: Check if this kmer was already counted. Only if not,
+				  //  overcpy += (asmK - readK)
+				  	overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
+				} else { // readK > asmK
+				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
+				}
+		  }
+		}
+	
+		#pragma omp critical
+		{
+			tot_missing+=missing;
+			tot_kasm+=kasm;
+			#pragma omp flush(tot_missing,tot_kasm)
 
-          if ( readK == 0 ) {
-            missing++;
-          } else if ( readK < asmK ) {
-            undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-            //  TODO: Check if this kmer was already counted. Only if not,
-            //  overcpy += (asmK - readK)
-            overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
-          } else { // readK > asmK
-            overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
-          }
-        }
-      }
-
-#pragma omp critical
-      {
-        tot_missing+=missing;
-        tot_kasm+=kasm;
-#pragma omp flush(tot_missing,tot_kasm)
-
-        for(uint64 ii = histMax - 1; ii > 0; ii--) {
-          undrHist[ii] += undrHist_pvt[ii];
-        }
-        undrHist[0] += undrHist_pvt[0];
-        overHist[0] += overHist_pvt[0];
-        for (uint64 ii = 1; ii < histMax; ii++) {
-          overHist[ii] += overHist_pvt[ii];
-        }
-
-        err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
-        qv = -10*log10(err);
-
-        fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
-            seq.ident(),
-            missing,
-            tot_missing,
-            kasm,
-            qv
-            );
-      }
-    }
+        	for(uint64 ii = histMax - 1; ii > 0; ii--) {
+            	undrHist[ii] += undrHist_pvt[ii];
+            }
+            undrHist[0] += undrHist_pvt[0];
+            overHist[0] += overHist_pvt[0];
+            for (uint64 ii = 1; ii < histMax; ii++) {
+            	overHist[ii] += overHist_pvt[ii];
+            }
+		
+			err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
+			qv = -10*log10(err);
+		
+			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
+					 seq.name(),
+					 missing,
+					 tot_missing,
+					 kasm,
+					 qv
+					 );
+		}
+	 }
   }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
-    if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
+     if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
   }
   fprintf(k_hist->file(), "%.1f\t%lu\n", 0.0, (undrHist[0]+overHist[0]));
   for (uint64 ii = 1; ii < histMax; ii++) {
-    if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
+     if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
   }
   fprintf(stderr, "\n");
   fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
@@ -455,7 +467,7 @@ histKmetric(char               *outName,
 
 
 void
-varMers(char			       *dnaSeqName,
+varMers(char			 *seqName,
         dnaSeqFile       *sfile,
         vcfFile          *vfile,
         merylExactLookup *rlookup,
@@ -468,12 +480,12 @@ varMers(char			       *dnaSeqName,
         int				        threads) {
 
   //  output file
-  ofstream oVcf(concat(out, ".polish.vcf"));
-  ofstream oDebug(concat(out, ".debug"));
+  compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
+  compressedFileWriter *oDebug  = new compressedFileWriter(concat(out, ".debug"));
 
   //  write vcf headers
   for ( string header : vfile->getHeaders()) {
-    oVcf << header << "\n";
+    fprintf(oVcf->file(), "%s\n", header.c_str());
   }
 
   //  What is the kmer size?
@@ -487,174 +499,122 @@ varMers(char			       *dnaSeqName,
   
   map<string, vector<posGT*>*> *mapChrPosGT = vfile->_mapChrPosGT;
 
+  vector<posGT*>  *posGTlist;
+  vector<gtAllele*>     *gts;
+
+  string   seqHeader;
+  char     fString[65];
+  char     rString[65];
+  string   kmer;
   dnaSeq   seq;
   
+  posGT    *posGt;
+  gtAllele *gt;
   uint32   pos;
+  uint32   rStart;
+  uint32   rEnd;
   uint32   K_PADD = ksize - 1;
+
+  uint32   hapIdx = 0;
+
+  vector<uint32> refIdxList;
+  vector<uint32> refLenList;
+  map<int, vector<char*> > mapPosHap;
+  vector<int>     path;
 
   uint64   varMerId = 0;
   
+  double RefAvgK;
+
   fprintf(stderr, "\nGenerating fasta index.\n");  
   sfile->generateIndex();
 
-  uint32 ctgn = sfile->numberOfSequences();
+  uint64 ctgn = sfile->numberOfSequences();
+  
+  sfile = new dnaSeqFile(seqName);
+  
+  // temporary sequence to hold ref bases
+  char * refTemplate;
 
-  //  threads = omp_get_max_threads();
-  uint32 chunks = ctgn;
+    for (uint32 seqId=0; seqId<ctgn;seqId++)
+    {
+  
+    sfile->loadSequence(seq);
+  
+    //  for each seqId
+    seqHeader = string(seq.name());
+    fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
 
-  //  Run chunks at maximum of MAX_FILES. Setting this too high will break network storag
-  const int64 openMax = sysconf(_SC_OPEN_MAX) / 2; // prevent too many open files
+    //  in case no seq.name() available, ignore this seqHeader
+    if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
+      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
+      continue;
+	}
+    //  get chr specific posGTs
+    posGTlist = mapChrPosGT->at(seq.name());
 
-  if (chunks > openMax) { chunks = openMax;  }
-  uint32 chunkLeft = chunks;
-  string tmpPrefix = string("tmp_") + sfile->filename() + string("_");
-  splitToWords fp(out, splitPaths);
-  tmpPrefix += fp.last() + string("_");
+    //  get sequence combinations on each posGT list
+    for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
 
-  fprintf(stderr, "\nTotal of %u sequences found. Will be processed over %d threads, with maximum %u intermediate %s# .debug and .vcf files\n",
-      ctgn, threads, chunks, tmpPrefix.c_str());
+      // initialize variables
+      posGt  = posGTlist->at(posGtIdx);
+      rStart = posGt->_rStart;  // 0-based
+      if (rStart > K_PADD) { rStart -= K_PADD; }
+      else { rStart = 0; }
 
-  for (uint32 ii = 0; ii < ctgn; ii += chunks) {
+      rEnd   = posGt->_rEnd;             // 1-based
+      if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
+      else { rEnd = seq.length(); }
 
-    if ( ii + chunks > ctgn ) chunkLeft = ctgn - ii;
-    fprintf(stderr, "Reading sequence %u - %u  ... \n", ii, ii+chunkLeft);
-    
-#pragma omp parallel for
-    for (uint32 seqId = ii; seqId < ii + chunkLeft; seqId++) {
-    //  for (uint32 seqId=0; seqId<ctgn; seqId++)  {
-      dnaSeq   seq;
-#pragma omp critical
-      {
-        sfile->findSequence(seqId);
-        sfile->loadSequence(seq);
-        //  printf(stderr, "Load\tseqID: %u\tseq: %s\n", seqId, seq.ident()); 
+      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
+
+      gts = posGt->_gts;
+      refIdxList.clear();
+      refLenList.clear();
+      path.clear();
+      mapPosHap.clear();
+       
+      //  load mapPosHap
+      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
+      for (uint32 i = 0; i < gts->size(); i++) {
+         gt = gts->at(i);
+         refIdxList.push_back(gt->_pos - rStart);
+         refLenList.push_back(gt->_refLen);
+
+         //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
+         //  add alleles. alleles.at(0) is always the ref allele
+         mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
       }
-    
-      // in case this seq has no variants, ignore this seq
-      if (mapChrPosGT->find(string(seq.ident())) == mapChrPosGT->end()) {
-        fprintf(stderr, "No variants found in vcf for contig \'%s\'. Skipping.\n", seq.ident());
+      //  fprintf(stderr, "\n");
+      
+  	  refTemplate = new char[(ksize*2+rEnd-rStart)];      
+      
+      //  load original sequence from rStart to rEnd
+      if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
+        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        continue;
+      }
+      // DEBUG			fprintf(stderr, "%s\n", refTemplate);
+
+      if ( refIdxList.size() > comb ) {
+        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
         continue;
       }
 
-      //  for each seqId
-      fprintf(stderr, "Processing \'%s\'\n", seq.ident());
-      
-      //  get chr specific posGTs
-      vector<posGT*>  *posGTlist = mapChrPosGT->at(seq.ident());
+      varMer* seqMer = new varMer(posGt);
 
-      //  temporary output files
-      string tmpDebugName = tmpPrefix + to_string(seqId) + ".debug";
-      compressedFileWriter  *tmpDebug  = new compressedFileWriter(tmpDebugName.c_str());
+      //  traverse through each gt combination
+      //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
+      traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
+      //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
 
-      string tmpVcfName = tmpPrefix + to_string(seqId) + ".vcf";
-      compressedFileWriter  *tmpVcf    = new compressedFileWriter(tmpVcfName.c_str());
-
-      //  get sequence combinations on each posGT list
-      for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
-
-        // initialize variables
-        posGT  *posGt = posGTlist->at(posGtIdx);
-        uint32 rStart = posGt->_rStart;  // 0-based
-        if (rStart > K_PADD) { rStart -= K_PADD; }
-        else { rStart = 0; }
-
-        uint32 rEnd   = posGt->_rEnd;             // 1-based
-        if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
-        else { rEnd = seq.length(); }
-
-        //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.ident(), rStart, rEnd);
-
-        vector<gtAllele*> *gts = posGt->_gts;
-        vector<uint32> refIdxList;
-        vector<uint32> refLenList;
-        map<int, vector<char*> > mapPosHap;
-        vector<int>     path;
-
-         
-        //  load mapPosHap
-        //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
-        for (uint32 i = 0; i < gts->size(); i++) {
-           gtAllele *gt = gts->at(i);
-           refIdxList.push_back(gt->_pos - rStart);
-           refLenList.push_back(gt->_refLen);
-
-           //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
-           //  add alleles. alleles.at(0) is always the ref allele
-           mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
-        }
-        //  fprintf(stderr, "\n");
-        
-        // temporary sequence to hold ref bases
-        char* refTemplate = new char[(ksize*2+rEnd-rStart)];      
-        
-        //  load original sequence from rStart to rEnd
-        if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-          fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.ident(), rStart, rEnd);
-          continue;
-        }
-        // DEBUG			fprintf(stderr, "%s\n", refTemplate);
-
-        if ( refIdxList.size() > comb ) {
-          fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.ident(), rStart, rEnd, gts->size(), comb);
-          continue;
-        }
-
-<<<<<<< HEAD
-        varMer* seqMer = new varMer(posGt);
-
-        //  traverse through each gt combination
-        //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
-        traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
-        //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
-
-        //  score each combination
-        //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
-        seqMer->score(rlookup, alookup, copyKmerDict);
-        //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
-        
-        // store the avgK of the reference to compute the delta
-        //  double refAvgK = seqMer->getAvgAbsK(0);
-
-        //  print to debug
-        for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-          fprintf(tmpDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
-            varMerId++,
-            seq.ident(),
-            rStart,
-            rEnd,
-            seqMer->seqs.at(idx).c_str(), //  seq
-            seqMer->numMs.at(idx),	//  missing
-            seqMer->getMinAbsK(idx),
-            seqMer->getMaxAbsK(idx),
-            seqMer->getMedAbsK(idx),
-            seqMer->getAvgAbsK(idx),
-            //seqMer->getAvgAbsdK(idx, refAvgK),
-            seqMer->getTotdK(idx)
-          );
-
-          //  new vcf records
-          //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.ident(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
-          if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
-            for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
-              // Ignore the ref-allele (0/0) GTs
-              // print only the non-ref allele variants for fixing
-              int altIdx = seqMer->gtPaths.at(idx).at(i);
-              if (altIdx > 0) {
-                fprintf(tmpDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-                  seq.ident(),
-                  (gts->at(i)->_pos+1),
-                  gts->at(i)->alleles->at(0),
-                  gts->at(i)->alleles->at(altIdx)
-                );
-              }
-=======
       //  score each combination
       //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
       seqMer->score(rlookup, alookup, copyKmerDict);
       //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
       
       // store the avgK of the reference to compute the delta
-      RefAvgK = seqMer->getAvgAbsK(0);
+      //RefAvgK = seqMer->getAvgAbsK(0);
 
       //  print to debug
       for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
@@ -669,7 +629,7 @@ varMers(char			       *dnaSeqName,
           seqMer->getMaxAbsK(idx),
           seqMer->getMedAbsK(idx),
           seqMer->getAvgAbsK(idx),
-          seqMer->getAvgAbsdK(idx, RefAvgK),
+          //seqMer->getAvgAbsdK(idx, RefAvgK),
           seqMer->getTotdK(idx)
         );
 
@@ -687,59 +647,33 @@ varMers(char			       *dnaSeqName,
                 gts->at(i)->alleles->at(0),
                 gts->at(i)->alleles->at(altIdx)
               );
->>>>>>> parent of ea258e8... Update merfin.C
-            }
-          }
-          fprintf(tmpDebug->file(), "\n");
-          fflush(tmpDebug->file());
-        }
-
-        // generate vcfs
-        if (bykstar) {
-          // Experimental: output vcf according to k*
-          fprintf(tmpVcf->file(), "%s", seqMer->bestVariant().c_str());
-          fflush(tmpVcf->file());
-        } else {
-          // Filter vcf and print as it was in the original vcf, conservatively
-          vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
-          if (records.size() > 0) {
-            for (uint64 i = 0; i < records.size(); i++) {
-              records.at(i)->save(tmpVcf);
-              fflush(tmpVcf->file());
             }
           }
         }
-     
-        delete seqMer;
-        delete[] refTemplate;
+        fprintf(oDebug->file(), "\n");
+        fflush(oDebug->file());
+      }
 
-      } // end of for loop per posGtIdx
- 
-      delete tmpDebug;
-      delete tmpVcf;
-
-#pragma omp critical
-      {
-        //  fprintf(stderr, "[DEBUG] :: Writing output from %d - %s : %s\n", seqId, seq.ident(), tmpDebugName.c_str());
-        ifstream tmpFileI(tmpDebugName, std::ios_base::binary);
-        if (tmpFileI.is_open()) {
-          oDebug << tmpFileI.rdbuf();
-          tmpFileI.close();
-          remove(tmpDebugName.c_str());
-        } else {
-          fprintf(stderr, "Unable to open file %s\n", tmpDebugName.c_str());
-        }
-
-        tmpFileI.open(tmpVcfName, std::ios_base::binary);
-        if (tmpFileI.is_open()) {
-          oVcf << tmpFileI.rdbuf();
-          tmpFileI.close();
-          remove(tmpVcfName.c_str());
-        } else {
-          fprintf(stderr, "Unable to open file %s\n", tmpVcfName.c_str());
+      // generate vcfs
+      if (bykstar) {
+        // Experimental: output vcf according to k*
+        fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
+        fflush(oVcf->file());
+      } else {
+        // Filter vcf and print as it was in the original vcf, conservatively
+        vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+        if (records.size() > 0) {
+          for (uint64 i = 0; i < records.size(); i++) {
+            records.at(i)->save(oVcf);
+            fflush(oVcf->file());
+          }
         }
       }
-    } // end of parallel for loop per sequence
+   
+      delete seqMer;
+      delete[] refTemplate;
+      
+    }  
   }
 }
 
@@ -757,7 +691,7 @@ main(int argc, char **argv) {
   static uint64   ipeak       = 0;
   bool            skipMissing = false;
   bool            nosplit     = false;
-  bool            bykstar     = false;
+  bool            bykstar     = true;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
@@ -807,8 +741,8 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       nosplit = true;
 
-    } else if (strcmp(argv[arg], "-bykstar") == 0) {
-      bykstar = true;
+    } else if (strcmp(argv[arg], "-disable-kstar") == 0) {
+      bykstar = false;
 
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
@@ -904,9 +838,9 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
     fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");   
-    fprintf(stderr, "             -by-kstar  output variants by kstar. *experimental*\n");   
-    fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
-    fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
+    fprintf(stderr, "             -disable-kstar  output variants by kstar. *experimental*\n");   
+    //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
+    //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
@@ -925,8 +859,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "      record          - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
-    fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
+    //fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
+    //fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
@@ -943,78 +877,86 @@ main(int argc, char **argv) {
 
   if (!(pLookupTable == NULL)) {
 
-    //  Read probabilities lookup table for 1-4 copy kmers.
+	     //  Read probabilities lookup table for 1-4 copy kmers.
 
-    int it = 0;
-    int r;
-    double p;
+		int it = 0;
+		int r;
+		double p;
 
-    ifstream inputFile(pLookupTable, std::ios::in | std::ios::binary);
+		ifstream inputFile(pLookupTable, std::ios::in | std::ios::binary);
 
-    if(inputFile.fail()){
-      fprintf(stderr, "Error: failed to locate lookup table!\n");
-      exit (EXIT_FAILURE);
-    }
+		if(inputFile.fail()){
+			fprintf(stderr, "Error: failed to locate lookup table!\n");
+			exit (EXIT_FAILURE);
+		}
 
-    // test file open   
-    if (inputFile) {        
-      string prob;
+		// test file open   
+		if (inputFile) {        
+		string prob;
 
-      // read the elements in the file into a vector  
-      while ( inputFile >> prob ) {
-        prob.erase(std::remove(prob.begin(), prob.end(), '\n'), prob.end());
-        copyKmerDict.push_back(prob);
-      }
+		// read the elements in the file into a vector  
+		while ( inputFile >> prob ) {
+			prob.erase(std::remove(prob.begin(), prob.end(), '\n'), prob.end());
+			copyKmerDict.push_back(prob);
+		}
 
-      fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, copyKmerDict.size());
+		fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, copyKmerDict.size());
 
-      while (it < copyKmerDict.size()) {
-        string s = copyKmerDict[it];
-        std::string delimiter = ",";
-        r = (int) stod(s.substr(0, s.find(delimiter)));
-        p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
+		while (it < copyKmerDict.size())
+		{
+			string s = copyKmerDict[it];
+			std::string delimiter = ",";
+			r = (int) stod(s.substr(0, s.find(delimiter)));
+			p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
+			
+			fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it+1, r, p);
 
-        fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it+1, r, p);
-
-        it++;
-      }
-
-      fprintf(stderr, "\n");
-
-      if (!inputFile.eof()) {
-        cout << "Error: couldn't read lookup table!\n";
-        exit (-1);
-      }
-    }
-  }
+			it++;
+		}
+		
+		fprintf(stderr, "\n");
+	
+		if (!inputFile.eof()) {
+			cout << "Error: couldn't read lookup table!\n";
+			exit (-1);
+		}
+	  }
+	}
 
   // pick readK function based on dictionary availability
-
+		
   getreadK = &getreadKdef;
 
   if (!copyKmerDict.empty()) {
-  	getreadK = &getreadKprob;	
+
+	getreadK = &getreadKprob;
+	
   }	
 
   //  Open read kmers, build a lookup table.
 
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
 
-  merylFileReader*  readDB    = new merylFileReader(readDBname);
-  merylExactLookup* readLookup = new merylExactLookup();
+  merylFileReader*  merylDB    = new merylFileReader(readDBname);
+  merylExactLookup* readLookup = new merylExactLookup(merylDB, memory2, minV, maxV);
 
-  readLookup->load(readDB, memory2, true, false, minV, maxV);
+  if (readLookup->configure() == false)
+    exit(1);
+
+  readLookup->load();
 
   // Open asm kmers, build a lookup table.
   
-  fprintf(stderr, "\n-- Loading kmers from '%s' into lookup table.\n", seqDBname);
-  merylFileReader*  asmDB      = new merylFileReader(seqDBname);
-  merylExactLookup* asmLookup = new merylExactLookup();
+  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
+  merylDB = new merylFileReader(seqDBname);
+  merylExactLookup* asmLookup = new merylExactLookup(merylDB, memory1, 0, UINT64_MAX);
 
-  asmLookup->load(asmDB, memory1, true, false);
+  if (asmLookup->configure() == false)
+    exit(1);
 
-  delete readDB;   //  Not needed anymore.
-  delete asmDB;    //  Not needed anymore.
+  asmLookup->load();
+
+  delete merylDB;   //  Not needed anymore.
 
   //  Open input sequences.
   dnaSeqFile  *seqFile = NULL;
