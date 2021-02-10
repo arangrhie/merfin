@@ -26,7 +26,7 @@ As a rule of thumb, the `-peak` should be:
 
 Optionally, a custom lookup table of kmer copy numbers with associated multiplicities and probabilities can be provided (`-lookup`). The lookup table is also generated using the script `lookup.R` under `scripts/lookup`. This is recommended, and can significantly improve the accuracy of all analyses.
 
-### Assess collapses/duplications and per base QV ###
+### Assess collapses/duplications ###
 
 The output of `-dump` can be further converted to `.Wig/.bw` tracks for visualization on IGV with:
 
@@ -35,6 +35,10 @@ awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep c
 #Convert to bigWig:
 wigToBigWig $dump_output.Wig $dump_output.bw
 ```
+
+### Assess per base QV ###
+Merfin will quickly produce [Merqury](https://github.com/marbl/merqury) QV estimates for each scaffold and genome-wide averages when `-hist` is used. Merqury QV estimate consider only kmers missing from the read sets. In addition, Merfin produces a QV* estimate, which accounts also for kmers that are seen in excess with respect to their expected multiplicity predicted from the reads.
+These analyses can be further refined when the lookup table is provided (`-lookup`, further details under `scripts/lookup`), in which case 0 to 4-copy kmer multiplicity estimates are corrected using [Genomescope 2.0](http://qb.cshl.edu/genomescope/genomescope2.0/) kmer frequency modelling to account for the real kmer distribution. Missing kmers then include plausible low frequency kmers. 0 to 4-copy kmer multiplicity estimates are weighted for the probability that the multiplicity estimate was correct. 
 
 ### Filter variant calls for polishing ###
 

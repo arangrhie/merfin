@@ -11,6 +11,3 @@ kmer_histogram  tab-delimited, 2-column file with (same as for Genomescope2, usu
 k_size          kmer length used for the histogram
 ploidy          haploid/diploid (default = 2)
 ```
-
-
-
