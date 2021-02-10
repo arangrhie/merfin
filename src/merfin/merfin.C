@@ -456,13 +456,14 @@ histKmetric(char               *outName,
   fprintf(stderr, "K-mers found in the assembly: %lu\n", tot_kasm);
   double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   double qv = -10*log10(err);
-  fprintf(stderr, "Merqury QV: %.2f\n", qv);
+  fprintf(stderr, "Missing QV: %.2f\n", qv);
   tot_missing += (uint64) ceil(overcpy);
   err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   qv = -10*log10(err);
-  fprintf(stderr, "Adjusted QV: %.2f\n", qv);
+  fprintf(stderr, "Merfin QV*: %.2f\n", qv);
   fprintf(stderr, "*** Note this QV is valid only if -seqmer was generated with -sequence ***\n\n");
-  fprintf(stderr, "*** Merqury QV only considers missing kmers as errors. Merfin QV includes overrepresented kmers. ***\n\n");
+  fprintf(stderr, "*** Missing QV only considers missing kmers as errors. Merfin QV* includes overrepresented kmers. ***\n\n");
+  fprintf(stderr, "*** When the lookup table is provided, missing QV includes weighted low frequency kmers, otherwise it is identical to Merqury QV ***\n\n");
 }
 
 
@@ -838,7 +839,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
     fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");   
-    fprintf(stderr, "             -disable-kstar  output variants by kstar. *experimental*\n");   
+    fprintf(stderr, "             -disable-kstar  only missing kmers are considered for filtering.\n");   
     //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
     //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
