@@ -599,6 +599,7 @@ varMers(char			       *dnaSeqName,
           continue;
         }
 
+<<<<<<< HEAD
         varMer* seqMer = new varMer(posGt);
 
         //  traverse through each gt combination
@@ -646,6 +647,47 @@ varMers(char			       *dnaSeqName,
                   gts->at(i)->alleles->at(altIdx)
                 );
               }
+=======
+      //  score each combination
+      //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
+      seqMer->score(rlookup, alookup, copyKmerDict);
+      //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
+      
+      // store the avgK of the reference to compute the delta
+      RefAvgK = seqMer->getAvgAbsK(0);
+
+      //  print to debug
+      for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
+          varMerId++,
+          seq.name(),
+          rStart,
+          rEnd,
+          seqMer->seqs.at(idx).c_str(), //  seq
+          seqMer->numMs.at(idx),	//  missing
+          seqMer->getMinAbsK(idx),
+          seqMer->getMaxAbsK(idx),
+          seqMer->getMedAbsK(idx),
+          seqMer->getAvgAbsK(idx),
+          seqMer->getAvgAbsdK(idx, RefAvgK),
+          seqMer->getTotdK(idx)
+        );
+
+        //  new vcf records
+        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+        if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
+          for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+            // Ignore the ref-allele (0/0) GTs
+            // print only the non-ref allele variants for fixing
+            int altIdx = seqMer->gtPaths.at(idx).at(i);
+            if (altIdx > 0) {
+              fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+                seq.name(),
+                (gts->at(i)->_pos+1),
+                gts->at(i)->alleles->at(0),
+                gts->at(i)->alleles->at(altIdx)
+              );
+>>>>>>> parent of ea258e8... Update merfin.C
             }
           }
           fprintf(tmpDebug->file(), "\n");
@@ -715,7 +757,7 @@ main(int argc, char **argv) {
   static uint64   ipeak       = 0;
   bool            skipMissing = false;
   bool            nosplit     = false;
-  bool            bykstar     = true;
+  bool            bykstar     = false;
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
@@ -765,8 +807,8 @@ main(int argc, char **argv) {
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       nosplit = true;
 
-    } else if (strcmp(argv[arg], "-disable-kstar") == 0) {
-      bykstar = false;
+    } else if (strcmp(argv[arg], "-bykstar") == 0) {
+      bykstar = true;
 
     } else if (strcmp(argv[arg], "-hist") == 0) {
       reportType = OP_HIST;
@@ -862,9 +904,9 @@ main(int argc, char **argv) {
     fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n"); 
     fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");   
-    fprintf(stderr, "             -disable-kstar  output variants by kstar. *experimental*\n");   
-    //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
-    //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
+    fprintf(stderr, "             -by-kstar  output variants by kstar. *experimental*\n");   
+    fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
@@ -883,8 +925,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "      record          - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    //fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
-    //fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
+    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
