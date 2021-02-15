@@ -29,7 +29,7 @@
 #include <cmath>
 #include <algorithm>
 
-uint64 
+double 
 varMer::peak = 0;
 
 void

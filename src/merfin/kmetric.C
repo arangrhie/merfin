@@ -16,7 +16,7 @@
 
 #include "kmetric.H"
 
-uint64 
+double 
 peak = 0;
            
 void

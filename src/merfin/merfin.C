@@ -689,7 +689,7 @@ main(int argc, char **argv) {
 
   uint64          minV        = 0;
   uint64          maxV        = UINT64_MAX;
-  static uint64   ipeak       = 0;
+  static double   ipeak       = 0;
   bool            skipMissing = false;
   bool            nosplit     = false;
   bool            bykstar     = true;
@@ -712,7 +712,7 @@ main(int argc, char **argv) {
       readDBname = argv[++arg];
 
     } else if (strcmp(argv[arg], "-peak") == 0) {
-      ipeak = strtouint64(argv[++arg]);
+      ipeak = strtodouble(argv[++arg]);
       
     } else if (strcmp(argv[arg], "-lookup") == 0) {
 
@@ -875,6 +875,10 @@ main(int argc, char **argv) {
   omp_set_num_threads(threads);
 
   vector<string> copyKmerDict;
+  
+  peak = ipeak;
+  
+  fprintf(stderr, "-- Using '%s' as peak.\n", peak);
 
   if (!(pLookupTable == NULL)) {
 
@@ -963,8 +967,6 @@ main(int argc, char **argv) {
   dnaSeqFile  *seqFile = NULL;
   fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
   seqFile = new dnaSeqFile(seqName);
-
-  peak = ipeak;
 
   //  Check report type
   if (reportType == OP_HIST) {

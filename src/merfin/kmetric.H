@@ -26,7 +26,7 @@
 
 using namespace std;
 
-extern uint64 peak;
+extern double peak;
 
 typedef double (*func_t)(
   		   uint64   		   fValue,
