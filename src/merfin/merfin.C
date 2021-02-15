@@ -878,7 +878,7 @@ main(int argc, char **argv) {
   
   peak = ipeak;
   
-  fprintf(stderr, "-- Using '%s' as peak.\n", peak);
+  fprintf(stderr, "\n-- Using '%lf' as peak.\n\n", peak);
 
   if (!(pLookupTable == NULL)) {
 
