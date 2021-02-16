@@ -92,9 +92,9 @@ getreadKprob(
 
   double tValue = fValue + rValue;
 
-  if (0 < tValue && tValue < copyKmerDict.size()) {
+  if (0 < tValue && tValue <= copyKmerDict.size()) {
   
-    std::string s = copyKmerDict[tValue];
+    std::string s = copyKmerDict[tValue-1];
     std::string delimiter = ",";
     readK = (int) stod(s.substr(0, s.find(delimiter)));
     prob = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
