@@ -16,6 +16,11 @@
 
 #include "kmetric.H"
 
+#include <string>
+#include <vector>
+
+using namespace std;
+
 uint64 
 peak = 0;
            
@@ -30,8 +35,8 @@ getK(
            double             &asmK,
            double			  &prob) {
 
-  uint64 fValue = 0;
-  uint64 rValue = 0;
+  kmvalu fValue = 0;
+  kmvalu rValue = 0;
 
   rlookup->exists(fmer, fValue);
   rlookup->exists(rmer, rValue);

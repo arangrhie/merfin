@@ -259,10 +259,10 @@ dumpKmetric(char               *outName,
 	FILE *out;
 	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
 	
-	auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
+	auto p = order.insert(pair<string, uint64>(seq.ident(), seqId));
 	if (!p.second)
 	{
-	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
+	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.ident());
 	  exit (-1);	  
 	}
 	
@@ -280,7 +280,7 @@ dumpKmetric(char               *outName,
 		if ( skipMissings )  continue;
 
 		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-				 seq.name(),
+				 seq.ident(),
 				 kiter.position(),
 				 readK,
 				 asmK,
@@ -296,7 +296,7 @@ dumpKmetric(char               *outName,
 		tot_missing+=missing;
 		#pragma omp flush(tot_missing)
 		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
-				 seq.name(),
+				 seq.ident(),
 				 missing,
 				 tot_missing,
 				 tot
@@ -311,9 +311,9 @@ dumpKmetric(char               *outName,
 
     for (uint32 seqId=0; sfile->loadSequence(seq);seqId++) {
     
-		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.name()));
+		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.ident()));
 		
-		order.erase (seq.name());
+		order.erase (seq.ident());
 
 		ifstream ifile(filename, ios::in); 
   
@@ -433,7 +433,7 @@ histKmetric(char               *outName,
 			qv = -10*log10(err);
 		
 			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
-					 seq.name(),
+					 seq.ident(),
 					 missing,
 					 tot_missing,
 					 kasm,
@@ -543,16 +543,16 @@ varMers(char			 *seqName,
     sfile->loadSequence(seq);
   
     //  for each seqId
-    seqHeader = string(seq.name());
-    fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
+    seqHeader = string(seq.ident());
+    fprintf(stderr, "\nProcessing \'%s\'\n", seq.ident());
 
-    //  in case no seq.name() available, ignore this seqHeader
+    //  in case no seq.ident() available, ignore this seqHeader
     if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
-      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
+      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.ident());
       continue;
 	}
     //  get chr specific posGTs
-    posGTlist = mapChrPosGT->at(seq.name());
+    posGTlist = mapChrPosGT->at(seq.ident());
 
     //  get sequence combinations on each posGT list
     for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
@@ -567,7 +567,7 @@ varMers(char			 *seqName,
       if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
       else { rEnd = seq.length(); }
 
-      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
+      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.ident(), rStart, rEnd);
 
       gts = posGt->_gts;
       refIdxList.clear();
@@ -592,13 +592,13 @@ varMers(char			 *seqName,
       
       //  load original sequence from rStart to rEnd
       if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.ident(), rStart, rEnd);
         continue;
       }
       // DEBUG			fprintf(stderr, "%s\n", refTemplate);
 
       if ( refIdxList.size() > comb ) {
-        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
+        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.ident(), rStart, rEnd, gts->size(), comb);
         continue;
       }
 
@@ -621,7 +621,7 @@ varMers(char			 *seqName,
       for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
         fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
-          seq.name(),
+          seq.ident(),
           rStart,
           rEnd,
           seqMer->seqs.at(idx).c_str(), //  seq
@@ -635,7 +635,7 @@ varMers(char			 *seqName,
         );
 
         //  new vcf records
-        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.ident(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
         if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
           for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
             // Ignore the ref-allele (0/0) GTs
@@ -643,7 +643,7 @@ varMers(char			 *seqName,
             int altIdx = seqMer->gtPaths.at(idx).at(i);
             if (altIdx > 0) {
               fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-                seq.name(),
+                seq.ident(),
                 (gts->at(i)->_pos+1),
                 gts->at(i)->alleles->at(0),
                 gts->at(i)->alleles->at(altIdx)
@@ -696,6 +696,7 @@ main(int argc, char **argv) {
   uint32          threads     = omp_get_max_threads();
   uint32          memory1     = 0;
   uint32          memory2     = 0;
+  double          maxMemory   = getMaxMemoryAllowed() / 1024.0 / 1024.0 / 1024.0;
   uint32          reportType  = OP_NONE;
   uint32		  comb = 15;
 
@@ -734,10 +735,10 @@ main(int argc, char **argv) {
       threads = strtouint32(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-memory1") == 0) {
-      memory1 = strtouint32(argv[++arg]);
+      maxMemory += strtodouble(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-memory2") == 0) {
-      memory2 = strtouint32(argv[++arg]);
+      maxMemory += strtodouble(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       nosplit = true;
@@ -938,26 +939,50 @@ main(int argc, char **argv) {
 
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
 
-  merylFileReader*  merylDB    = new merylFileReader(readDBname);
-  merylExactLookup* readLookup = new merylExactLookup(merylDB, memory2, minV, maxV);
+  merylFileReader*  readDB     = new merylFileReader(readDBname);
+  merylFileReader*  asmDB      = new merylFileReader(seqDBname);
+  merylExactLookup* readLookup = new merylExactLookup();
+  merylExactLookup* asmLookup  = new merylExactLookup();
 
-  if (readLookup->configure() == false)
+  double            minMem, minMemTotal = 0;
+  double            optMem, optMemTotal = 0;
+  bool              useOpt = false;
+  bool              useMin = false;
+
+  readLookup->estimateMemoryUsage(readDB, maxMemory, minMem, optMem, minV, maxV);
+  minMemTotal += minMem;
+  optMemTotal += optMem;
+
+  asmLookup->estimateMemoryUsage(asmDB, maxMemory, minMem, optMem, minV, maxV);
+  minMemTotal += minMem;
+  optMemTotal += optMem;
+
+   if      (optMemTotal <= maxMemory)
+    useOpt = true;
+  else if (minMemTotal <= maxMemory)
+    useMin = true;
+
+  fprintf(stderr, "--\n");
+  fprintf(stderr, "-- Minimal memory needed: %.3f GB%s\n", minMemTotal, (useMin) ? "  enabled" : "");
+  fprintf(stderr, "-- Optimal memory needed: %.3f GB%s\n", optMemTotal, (useOpt) ? "  enabled" : "");
+  fprintf(stderr, "-- Memory limit           %.3f GB\n",   maxMemory);
+  fprintf(stderr, "--\n");
+
+  if ((useMin == false) &&
+      (useOpt == false)) {
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Not enough memory to load databases.  Increase -memory.\n");
+    fprintf(stderr, "\n");
     exit(1);
+  }
 
-  readLookup->load();
-
-  // Open asm kmers, build a lookup table.
-  
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
-  merylDB = new merylFileReader(seqDBname);
-  merylExactLookup* asmLookup = new merylExactLookup(merylDB, memory1, 0, UINT64_MAX);
 
-  if (asmLookup->configure() == false)
-    exit(1);
+  readLookup->load(readDB, maxMemory, useMin, useOpt, minV, maxV);
+  asmLookup-> load(asmDB,  maxMemory, useMin, useOpt);
 
-  asmLookup->load();
-
-  delete merylDB;   //  Not needed anymore.
+  delete readDB;    //  Not needed anymore.
+  delete asmDB;
 
   //  Open input sequences.
   dnaSeqFile  *seqFile = NULL;
@@ -999,3 +1024,4 @@ main(int argc, char **argv) {
 
   exit(0);
 }
+

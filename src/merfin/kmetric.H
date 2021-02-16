@@ -24,7 +24,8 @@
 #include "types.H"
 #include "kmers.H"
 
-using namespace std;
+using std::vector;
+using std::string;
 
 extern uint64 peak;
 
