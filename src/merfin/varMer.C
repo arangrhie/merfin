@@ -12,6 +12,8 @@
  *  contains full conditions and disclaimers.
  */
 
+#include "merfin-globals.H"
+
 #include "runtime.H"
 
 #include "kmers.H"
@@ -47,7 +49,7 @@ varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, v
 }
 
 void
-varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict) {
+varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, merfinGlobal &G) {
 
   //  iterate through each base and get kmer
   uint32 numM;  // num. missing kmers
@@ -82,7 +84,7 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<strin
       if (kiter.isValid()) {
 		  //  we only need readK and asmK, no need to get the kMetric here yet
 		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
-		  getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+      G.getK(kiter.fmer(), kiter.rmer(), readK, asmK, prob);
 		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
 	  }		  
 	  // store difference in kmer count accounting for uncertainty in the estimate of readK

@@ -18,16 +18,14 @@
 #ifndef AS_UTL_VARMER_H
 #define AS_UTL_VARMER_H
 
-#include "runtime.H"
-#include "types.H"
-#include "kmers.H"
-#include "kmetric.H"
-#include "varMer.H"
+#include "merfin-globals.H"
+
 #include <string>
 #include <algorithm>
 #include <map>
 #include <vector>
 #include <cmath>
+
 using namespace std;
 
 
@@ -41,7 +39,7 @@ public:
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict);
+  void score(merylExactLookup *rlookup, merylExactLookup *alookup, merfinGlobal &G);
 
   string  bestVariant();
   vector<vcfRecord*>  bestVariantOriginalVCF();
