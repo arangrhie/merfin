@@ -27,18 +27,10 @@ uint64 getIndex(vector<string> v, string K)
   return index;
 }
 
-char*
-concat(const char *s1, const char *s2) {
-  char *result = (char*) malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
-  // check for errors in malloc
-  strcpy(result, s1);
-  strcat(result, s2);
-  return result;
-}
 
 
 string
-replace(string a, int i, int len, char* rep) {
+replace(string a, int i, int len, char const * rep) {
   a.replace(i, len, rep);
   return a;
 }
@@ -49,21 +41,21 @@ string
 traverse(uint32          idx,
          vector<uint32>  refIdxList,
          vector<uint32>  refLenList,
-         map<int, vector<char*> >  posHaps,
+         map<int, vector<char const*> >  posHaps,
          string          candidate,
          vector<int>     path,
          varMer*         seqMer) {
 
   if (idx < refIdxList.size()) {
     // fprintf(stderr, "[ DEBUG ] :: idx = %u | candidate = %s\n", idx, candidate.c_str());
-    vector<char*> haps = posHaps.at(idx);
+    vector<char const *> haps = posHaps.at(idx);
     uint32 refLen = refLenList.at(idx);    // Keep refLen so we revert in case there are > 1 ALTs
 
     //  for each haplotype sequence, make a combination
     //  j = 0 is always the REF allele
     for (int j = 0; j < haps.size(); j++) {
       path.push_back(j);
-      char* hap = haps.at(j);
+      char const * hap = haps.at(j);
       string replaced = candidate;
       int delta = 0;
       int skipped = 0;
@@ -195,9 +187,9 @@ processVariants(void *G, void *T, void *S) {
 
   //  If no variants for this sequence, ignore it.
 
-  map<string, vector<posGT*>*> *mapChrPosGT = g->inVcf->_mapChrPosGT;
+  map<string, vector<posGT*>*> &mapChrPosGT = g->inVcf->_mapChrPosGT;
 
-  if (mapChrPosGT->find(string(s->seq.ident())) == mapChrPosGT->end()) {
+  if (mapChrPosGT.find(string(s->seq.ident())) == mapChrPosGT.end()) {
     fprintf(stderr, "No variants in vcf for contig '%s'. Skipping.\n", s->seq.ident());
     return;
   }
@@ -219,12 +211,12 @@ processVariants(void *G, void *T, void *S) {
 
   //  Get chromosome specific posGTs, and iterate over.
 
-  vector<posGT *> *posGTlist = mapChrPosGT->at(s->seq.ident());
+  vector<posGT *> *posGTlist = mapChrPosGT.at(s->seq.ident());
 
   vector<uint32>           refIdxList;
   vector<uint32>           refLenList;
   vector<int>              path;
-  map<int, vector<char*> > mapPosHap;
+  map<int, vector<char const *> > mapPosHap;
 
   for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
     posGT               *posGt  = posGTlist->at(posGtIdx);
@@ -263,7 +255,8 @@ processVariants(void *G, void *T, void *S) {
       refLenList.push_back(gt->_refLen);
 
       //  add alleles. alleles.at(0) is always the ref allele
-      mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
+#warning is this copying the whole vector?
+      mapPosHap[i] = *(gt->_alleles);
     }
 
     //  Load original sequence from rStart to rEnd.
@@ -329,8 +322,8 @@ processVariants(void *G, void *T, void *S) {
             fprintf(t->oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
                     s->seq.ident(),
                     (gts->at(i)->_pos+1),
-                    gts->at(i)->alleles->at(0),
-                    gts->at(i)->alleles->at(altIdx)
+                    gts->at(i)->_alleles->at(0),
+                    gts->at(i)->_alleles->at(altIdx)
                     );
           }
         }
@@ -376,7 +369,11 @@ outputVariants(void *G, void *S) {
   //  Open the output file and write headers.
 
   if (g->oVCF == nullptr) {
-    g->oVCF = new compressedFileWriter(concat(g->outName, ".polish.vcf"));
+    char  name[FILENAME_MAX+1];
+
+    snprintf(name, FILENAME_MAX, "%s.polish.vcf", g->outName);
+
+    g->oVCF = new compressedFileWriter(name);
 
     for (string header : g->inVcf->getHeaders())
       fprintf(g->oVCF->file(), "%s\n", header.c_str());

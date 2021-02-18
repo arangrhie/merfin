@@ -22,6 +22,8 @@
 #include "types.H"
 #include "kmers.H"
 
+#include "strings.H"
+
 #include <string>
 #include <algorithm>
 #include <map>
@@ -29,76 +31,95 @@ using namespace std;
 
 
 
-class splitFields {
-public:
-  splitFields(const char *string=NULL, char delim='\t');
-  ~splitFields();
-
-public:
-  void    split(const char *line, char delim='\t');  //  split by delim
-
-  uint32  numWords(void)        { return(_wordsLen); };
-
-  char   *operator[](uint32 i)  { return(first(i)); };
-
-  char   *first(uint32 i=0)     { return((_wordsLen <= i) ? NULL : _words[i]);  };
-  char   *shift(void)           {
-    if (_wordsLen == 0)                     //  If no words, nothing to return.
-      return(NULL);
-
-    for (uint32 ii=1; ii<_wordsLen; ii++)   //  Shift all words down one place, moving
-      swap(_words[ii-1], _words[ii]);       //  the word to shift off to the end.
-
-    return(_words[--_wordsLen]);            //  Return the word we shifted out.
-  };
-
-  char   *last(uint32 i=0)      { return((_wordsLen == 0) ? NULL : _words[_wordsLen - i - 1]); };
-  char   *pop(void)             { return((_wordsLen == 0) ? NULL : _words[--_wordsLen]);       };
-
-  int32   toint32(uint32 i)     { return(strtoint32 (_words[i])); };
-  uint32  touint32(uint32 i)    { return(strtouint32(_words[i])); };
-  int64   toint64(uint32 i)     { return(strtoint64 (_words[i])); };
-  uint64  touint64(uint32 i)    { return(strtouint64(_words[i])); };
-  double  todouble(uint32 i)    { return(strtodouble(_words[i])); };
-
-private:
-  uint32    _wordsLen;
-  uint32    _wordsMax;
-  char    **_words;
-
-  uint32    _charsLen;
-  uint32    _charsMax;
-  char     *_chars;
-};
-
 
 class vcfRecord {
 public:
-  vcfRecord();
-  vcfRecord(char *inLine);
-  ~vcfRecord();
+  vcfRecord(char *inLine) {
+    load(inLine);
+  }
 
-  void    load(char *inLine);
-  bool    isInvalid() { return !isValid;  };
-  void    save(compressedFileWriter* outFile);
+  vcfRecord() {};
+  ~vcfRecord() {}
+
+  bool    isValid(void) {
+    return(_isValid);
+  }
+
+  void    invalidate(void) {
+    _isValid = false;
+  }
+
+  void    load(char *inLine) {
+    _words.split(inLine, splitLetter, '\t');
+
+    _isValid = (_words.numWords() >= 10);
+
+    //  If not valid, release any memory in splitToWords.
+    if (_isValid == false) {
+      _words.erase();
+    }
+
+    //  If valid, populate our pointers.
+    else {
+      _chr      = _words[0];
+      _pos      = _words.touint32(1);
+      _id       = _words[2];
+      _ref      = _words[3];
+      _alts     = _words[4];
+      _qual     = _words.todouble(5);
+      _filter   = _words[6];
+      _info     = _words[7];
+      _formats  = _words[8];
+      _samples  = _words[9];
+
+      _arr_alts.   split(_alts,    splitLetter, ',');
+      _arr_formats.split(_formats, splitLetter, ':');
+      _arr_samples.split(_samples, splitLetter, ':');
+    }
+  }
+
+  void    save(compressedFileWriter* outFile) {
+    fprintf(outFile->file(), "%s\t%d\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\n",
+            _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
+  }
 
 public:
-  char*         _chr;          //  CHR
-  uint32        _pos;          //  POS
-  char*         _id;           //  ID
-  char*         _ref;          //  REF
-  char*         _alts;         //  ALT
-  float         _qual;         //  QUAL
-  char*         _filter;       //  FILTER
-  char*         _info;         //  INFO
-  char*         _formats;      //  FORMAT
-  char*         _samples;      //  SAMPLE
-  int           _size_alts;    //  Num. alt variants
-  int           _size_format;  //  Num. format values
-  splitFields*  _arr_alts;
-  splitFields*  _arr_formats;
-  splitFields*  _arr_samples;
-  bool           isValid = true;  //  has non-sense GT?
+  char const   *get_chr(void)          { return(_chr);         }
+  uint32        get_pos(void)          { return(_pos);         }
+  //char const   *get_id(void)           { return(_id);          }
+  char const   *get_ref(void)          { return(_ref);         }
+  //char         *get_alts(void)         { return(_alts);        }
+  //float         get_qual(void)         { return(_qual);        }
+  //char         *get_filter(void)       { return(_filter);      }
+  //char         *get_info(void)         { return(_info);        }
+  //char         *get_formats(void)      { return(_formats);     }
+  //char         *get_samples(void)      { return(_samples);     }
+  //int           get_size_alts(void)    { return(_size_alts);   }
+  //int           get_size_format(void)  { return(_size_format); }
+
+private:
+  splitToWords  _words;                    //  Input line, the rest are pointers into this.
+
+  char         *_chr         = nullptr;    //  CHR
+  uint32        _pos         = uint32max;  //  POS
+  char         *_id          = nullptr;    //  ID
+  char         *_ref         = nullptr;    //  REF
+  char         *_alts        = nullptr;    //  ALT
+  float         _qual        = 0.0;        //  QUAL
+  char         *_filter      = nullptr;    //  FILTER
+  char         *_info        = nullptr;    //  INFO
+  char         *_formats     = nullptr;    //  FORMAT
+  char         *_samples     = nullptr;    //  SAMPLE
+  int           _size_alts   = 0;          //  Num. alt variants
+  int           _size_format = 0;          //  Num. format values
+
+public:
+  splitToWords  _arr_alts;
+  splitToWords  _arr_formats;
+  splitToWords  _arr_samples;
+
+public:
+  bool          _isValid = false;          //  has non-sense GT?
 };
 
 
@@ -113,14 +134,15 @@ public:
   ~gtAllele();
 
 public:
-  vcfRecord*    _record;
-  uint32        _pos;
-  uint32        _refLen;
-  vector<char*> *alleles;
+  vcfRecord            *_record;
+  uint32                _pos;
+  uint32                _refLen;
+  vector<char const *> *_alleles;
 
 private:
-  void parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles, bool &isValid);
+  void parseGT(char const *gt);
 };
+
 
 /****************************************************
  *  _rStart : 0-base, ref coord. POS-1from vcf
@@ -131,64 +153,72 @@ private:
 class posGT {
 public:
   posGT(vcfRecord *record) {
-    _chr         = record->_chr;
-    _rStart      = record->_pos - 1;
-    _rEnd        = _rStart + 1;
-    _gts         = new vector<gtAllele*>();
+    _chr         = record->get_chr();
+    _rStart      = record->get_pos() - 1;
+    _rEnd        = record->get_pos();
+
+    _gts         = new vector<gtAllele*>;
     gtAllele *gt = new gtAllele(record);
 
     addGtAllele(gt);
-
   };
+
   ~posGT();
 
 public:
+  char const        *_chr;
   uint32             _rStart;
   uint32             _rEnd;
   vector<gtAllele*> *_gts;
 
 public:
   int    size() {
-  
-  return _gts->size();
-  
+    return(_gts->size());
   };
 
 public:
   void    addGtAllele(gtAllele *gt) {
     _gts->push_back(gt);
 
-    uint32 rStart = gt->_pos;                // already 0-based
-    uint32 rEnd   = rStart + gt->_refLen;    // use refLen to get actual ref coords
-
-    _rStart = ( rStart < _rStart ) ? rStart : _rStart;
-    _rEnd   = ( rEnd   > _rEnd   ) ? rEnd   : _rEnd;
-
-    return;
+    _rStart = min(_rStart, gt->_pos);
+    _rEnd   = max(_rEnd,   gt->_pos + gt->_refLen);
   };
-
-public:
-  char* _chr;
 };
 
 
 class vcfFile {
 public:
-  vcfFile(char *inName);
-  ~vcfFile();
+  vcfFile(char *inName) {
+    loadFile(inName);
+  }
+
+  ~vcfFile() {
+    for (uint32 ii=0; ii<_records.size(); ii++)
+      delete _records[ii];
+  }
 
   bool    loadFile(char *inName);
-  bool    saveFile(compressedFileWriter *outFile);
-  bool    mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);	//  Merge ChrPosGT when POS are within ksize
-  vector<string> getHeaders()  { return _headers; };
+
+  bool    saveFile(compressedFileWriter *outFile) {
+    for (uint32 ii=0; ii<_records.size(); ii++)
+      if (_records[ii])
+        _records[ii]->save(outFile);
+
+    return(true);
+  }
+
+  //  Merge ChrPosGT when POS are within ksize
+  bool            mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);
+
+  vector<string> getHeaders(void)  {
+    return _headers;
+  };
 
 public:
-  char                           *_fName;
-  int32                           _numChr;  //  num. of CHR entries
+  int32                           _numChr      = 0;  //  num. of CHR entries
   vector<string>                  _headers;
   vector<vcfRecord *>             _records;
-  map<string, vector<posGT *>* > *_mapChrPosGT; 
-
+  map<string, vector<posGT *>* >  _mapChrPosGT; 
 };
 
 

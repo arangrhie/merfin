@@ -302,33 +302,33 @@ varMer::getHetRecord(int idx1, int idx2) {
     if ( altIdx1 + altIdx2 > 0 ) {
       records = records + posGt->_chr + "\t" + 
         to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-        posGt->_gts->at(i)->alleles->at(0) + "\t";
+        posGt->_gts->at(i)->_alleles->at(0) + "\t";
 
       // alt1 == alt2: 1/1
       // Sometimes, there are cases where path is different but the allele chosen overlaps
       if ( altIdx1 == altIdx2 ) {
-        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
+        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) + "\t.\t" +
           "PASS\t.\tGT\t1/1\n";
 
 
       }
       // alt1 == ref && alt2 == alt: 0/1
       else if ( altIdx1 == 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
+        records = records + posGt->_gts->at(i)->_alleles->at(altIdx2) + "\t.\t" +
           "PASS\t.\tGT\t0/1\n";
 
       } 
       // alt1 == alt && alt2 == alt: 1/2
       else if ( altIdx1 > 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) +
+        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) +
           "," +
-          posGt->_gts->at(i)->alleles->at(altIdx2) +
+          posGt->_gts->at(i)->_alleles->at(altIdx2) +
           "\t.\t" +
           "PASS\t.\tGT\t1/2\n";
       }
       // alt1 == alt && alt2 == ref: 1/0
       else if ( altIdx1 > 0 && altIdx2 == 0 ) {
-        records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
+        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) + "\t.\t" +
           "PASS\t.\tGT\t1/0\n";
       }
     }
@@ -345,8 +345,8 @@ varMer::getHomRecord(int idx) {
       // altIdx is the reference allele: ignore
       records = records + posGt->_chr + "\t" +
         to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-        posGt->_gts->at(i)->alleles->at(0) + "\t" +
-        posGt->_gts->at(i)->alleles->at(altIdx) + "\t.\t" +
+        posGt->_gts->at(i)->_alleles->at(0) + "\t" +
+        posGt->_gts->at(i)->_alleles->at(altIdx) + "\t.\t" +
         "PASS\t.\tGT\t1/1\n";
     }
   }
