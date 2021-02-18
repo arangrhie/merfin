@@ -179,238 +179,186 @@ traverse(uint32          idx,
     }
   }
   idx--;
+  //fprintf(stderr, "traverse() returns candidate idx %d '%s'\n", idx, candidate.c_str());
   return candidate;
 }
-
-
-
-
-
-
-void
-varMers(char             *seqName,
-        dnaSeqFile       *sfile,
-        vcfFile          *vfile,
-        merylExactLookup *rlookup,
-        merylExactLookup *alookup,
-        char             *out,
-        uint32                  comb,
-        bool                    nosplit,
-        merfinGlobal     &G,
-        bool              bykstar,
-        int                        threads) {
-
-  //  output file
-  compressedFileWriter *oVcf    = new compressedFileWriter(concat(out, ".polish.vcf"));
-  compressedFileWriter *oDebug  = new compressedFileWriter(concat(out, ".debug"));
-
-  //  write vcf headers
-  for ( string header : vfile->getHeaders()) {
-    fprintf(oVcf->file(), "%s\n", header.c_str());
-  }
-
-  //  What is the kmer size?
-  uint32 ksize = kmer::merSize();
-
-  //  Merge posGTlist for each chr within ksize
-  fprintf(stderr, "Merge variants within %u-mer bases, splitting combinations greater than %u.\n", ksize, comb);
-  vfile->mergeChrPosGT(ksize, comb, nosplit);
-
-  // print CHR rStart rEnd POS HAP1 HAP2 minHAP1 minHAP2 to out.debug
-
-  map<string, vector<posGT*>*> *mapChrPosGT = vfile->_mapChrPosGT;
-
-  vector<posGT*>  *posGTlist;
-  vector<gtAllele*>     *gts;
-
-  string   seqHeader;
-  char     fString[65];
-  char     rString[65];
-  string   kmer;
-  dnaSeq   seq;
-
-  posGT    *posGt;
-  gtAllele *gt;
-  uint32   pos;
-  uint32   rStart;
-  uint32   rEnd;
-  uint32   K_PADD = ksize - 1;
-
-  uint32   hapIdx = 0;
-
-  vector<uint32> refIdxList;
-  vector<uint32> refLenList;
-  map<int, vector<char*> > mapPosHap;
-  vector<int>     path;
-
-  uint64   varMerId = 0;
-
-  double RefAvgK;
-
-  fprintf(stderr, "\nGenerating fasta index.\n");
-  sfile->generateIndex();
-
-  uint64 ctgn = sfile->numberOfSequences();
-
-  sfile = new dnaSeqFile(seqName);
-
-  // temporary sequence to hold ref bases
-  char * refTemplate;
-
-  for (uint32 seqId=0; seqId<ctgn;seqId++) {
-    sfile->loadSequence(seq);
-
-    //  for each seqId
-    seqHeader = string(seq.ident());
-    fprintf(stderr, "\nProcessing \'%s\'\n", seq.ident());
-
-    //  in case no seq.ident() available, ignore this seqHeader
-    if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
-      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.ident());
-      continue;
-    }
-    //  get chr specific posGTs
-    posGTlist = mapChrPosGT->at(seq.ident());
-
-    //  get sequence combinations on each posGT list
-    for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
-
-      // initialize variables
-      posGt  = posGTlist->at(posGtIdx);
-      rStart = posGt->_rStart;  // 0-based
-      if (rStart > K_PADD) { rStart -= K_PADD; }
-      else { rStart = 0; }
-
-      rEnd   = posGt->_rEnd;             // 1-based
-      if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
-      else { rEnd = seq.length(); }
-
-      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.ident(), rStart, rEnd);
-
-      gts = posGt->_gts;
-      refIdxList.clear();
-      refLenList.clear();
-      path.clear();
-      mapPosHap.clear();
-
-      //  load mapPosHap
-      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
-      for (uint32 i = 0; i < gts->size(); i++) {
-        gt = gts->at(i);
-        refIdxList.push_back(gt->_pos - rStart);
-        refLenList.push_back(gt->_refLen);
-
-        //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
-        //  add alleles. alleles.at(0) is always the ref allele
-        mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
-      }
-      //  fprintf(stderr, "\n");
-
-      refTemplate = new char[(ksize*2+rEnd-rStart)];
-
-      //  load original sequence from rStart to rEnd
-      if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.ident(), rStart, rEnd);
-        continue;
-      }
-      // DEBUG            fprintf(stderr, "%s\n", refTemplate);
-
-      if ( refIdxList.size() > comb ) {
-        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.ident(), rStart, rEnd, gts->size(), comb);
-        continue;
-      }
-
-      varMer* seqMer = new varMer(posGt);
-
-      //  traverse through each gt combination
-      //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
-      traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
-      //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
-
-      //  score each combination
-      //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
-      seqMer->score(rlookup, alookup, G);
-      //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
-
-      // store the avgK of the reference to compute the delta
-      //RefAvgK = seqMer->getAvgAbsK(0);
-
-      //  print to debug
-      for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
-                varMerId++,
-                seq.ident(),
-                rStart,
-                rEnd,
-                seqMer->seqs.at(idx).c_str(), //  seq
-                seqMer->numMs.at(idx),    //  missing
-                seqMer->getMinAbsK(idx),
-                seqMer->getMaxAbsK(idx),
-                seqMer->getMedAbsK(idx),
-                seqMer->getAvgAbsK(idx),
-                //seqMer->getAvgAbsdK(idx, RefAvgK),
-                seqMer->getTotdK(idx)
-                );
-
-        //  new vcf records
-        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.ident(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
-        if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
-          for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
-            // Ignore the ref-allele (0/0) GTs
-            // print only the non-ref allele variants for fixing
-            int altIdx = seqMer->gtPaths.at(idx).at(i);
-            if (altIdx > 0) {
-              fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-                      seq.ident(),
-                      (gts->at(i)->_pos+1),
-                      gts->at(i)->alleles->at(0),
-                      gts->at(i)->alleles->at(altIdx)
-                      );
-            }
-          }
-        }
-        fprintf(oDebug->file(), "\n");
-        fflush(oDebug->file());
-      }
-
-      // generate vcfs
-      if (bykstar) {
-        // Experimental: output vcf according to k*
-        fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
-        fflush(oVcf->file());
-      } else {
-        // Filter vcf and print as it was in the original vcf, conservatively
-        vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
-        if (records.size() > 0) {
-          for (uint64 i = 0; i < records.size(); i++) {
-            records.at(i)->save(oVcf);
-            fflush(oVcf->file());
-          }
-        }
-      }
-
-      delete seqMer;
-      delete[] refTemplate;
-
-    }
-  }
-}
-
-
-
-
-
-
 
 
 
 void
 processVariants(void *G, void *T, void *S) {
   merfinGlobal  *g = (merfinGlobal *)G;
-  //merfinHisto   *t = (merfinHisto *)T;
+  merfinThrData *t = (merfinThrData *)T;
   merfinInput   *s = (merfinInput *)S;
 
   fprintf(stderr, "Processing sequence %s for variants\n", s->seq.ident());
+
+  //  If no variants for this sequence, ignore it.
+
+  map<string, vector<posGT*>*> *mapChrPosGT = g->inVcf->_mapChrPosGT;
+
+  if (mapChrPosGT->find(string(s->seq.ident())) == mapChrPosGT->end()) {
+    fprintf(stderr, "No variants in vcf for contig '%s'. Skipping.\n", s->seq.ident());
+    return;
+  }
+
+  //  Initialize the per-thread data if needed.
+
+  if (t->oDebug == nullptr) {
+    char  name[FILENAME_MAX+1];
+
+    snprintf(name, FILENAME_MAX, "%s.%02d.debug", g->outName, t->threadID);
+    t->oDebug = new compressedFileWriter(name);
+
+    snprintf(name, FILENAME_MAX, "%s.%02d.vcf", g->outName, t->threadID);
+    t->oVcf = new compressedFileWriter(name);
+
+    for (string header : g->inVcf->getHeaders())
+      fprintf(t->oVcf->file(), "%s\n", header.c_str());
+  }
+
+  //  Get chromosome specific posGTs, and iterate over.
+
+  vector<posGT *> *posGTlist = mapChrPosGT->at(s->seq.ident());
+
+  vector<uint32>           refIdxList;
+  vector<uint32>           refLenList;
+  vector<int>              path;
+  map<int, vector<char*> > mapPosHap;
+
+  for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
+    posGT               *posGt  = posGTlist->at(posGtIdx);
+    uint32               rStart = posGt->_rStart;   //  0-based!
+    uint32               rEnd   = posGt->_rEnd;     //  1-based!
+    vector<gtAllele *>  *gts    = posGt->_gts;
+
+    uint32               K_PADD = kmer::merSize() - 1;
+
+    if (rStart > K_PADD)                   rStart -= K_PADD;
+    else                                   rStart  = 0;
+
+    if (rEnd < s->seq.length() - K_PADD)   rEnd   += K_PADD;
+    else                                   rEnd    = s->seq.length();
+
+    refIdxList.clear();
+    refLenList.clear();
+    path.clear();
+    mapPosHap.clear();
+
+    //  Debug report the mapPosHap
+
+    //fprintf(stderr, "\n");
+    //fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", s->seq.ident(), rStart, rEnd);
+    //fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
+    //for (uint32 i = 0; i < gts->size(); i++)
+    //  fprintf(stderr, "gt->_pos = %u ",  gts->at(i)->_pos);
+    //fprintf(stderr, "\n");
+
+    //  Load mapPosHap
+
+    for (uint32 i = 0; i < gts->size(); i++) {
+      gtAllele *gt = gts->at(i);
+
+      refIdxList.push_back(gt->_pos - rStart);
+      refLenList.push_back(gt->_refLen);
+
+      //  add alleles. alleles.at(0) is always the ref allele
+      mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
+    }
+
+    //  Load original sequence from rStart to rEnd.
+
+    char *refTemplate = new char[kmer::merSize() * 2 + rEnd - rStart];
+
+    if (s->seq.copy(refTemplate, rStart, rEnd, true ) == false) {
+      fprintf(stderr, "PANIC : Invalid region specified: %s : %u - %u\n", s->seq.ident(), rStart, rEnd);
+      continue;
+    }
+
+    if (refIdxList.size() > g->comb) {
+      fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n",
+              s->seq.ident(), rStart, rEnd, gts->size(), g->comb);
+      continue;
+    }
+
+    //fprintf(stderr, "%s\n", refTemplate);
+
+    //
+
+    varMer* seqMer = new varMer(posGt);
+
+    //  Traverse through each gt combination
+    //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
+    traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
+    //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
+
+    //  Score each combination
+    //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
+    seqMer->score(g);
+    //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
+
+    //  Store the avgK of the reference to compute the delta
+    //RefAvgK = seqMer->getAvgAbsK(0);
+
+    //  Save debug info.
+
+    for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
+      fprintf(t->oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
+              t->varMerId++,
+              s->seq.ident(),
+              rStart,
+              rEnd,
+              seqMer->seqs.at(idx).c_str(),  //  seq
+              seqMer->numMs.at(idx),         //  missing
+              seqMer->getMinAbsK(idx),
+              seqMer->getMaxAbsK(idx),
+              seqMer->getMedAbsK(idx),
+              seqMer->getAvgAbsK(idx),
+              //seqMer->getAvgAbsdK(idx, RefAvgK),
+              seqMer->getTotdK(idx));
+
+      //  new vcf records
+      //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", s->seq.ident(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+
+      if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
+        for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+          // Ignore the ref-allele (0/0) GTs
+          // print only the non-ref allele variants for fixing
+          int altIdx = seqMer->gtPaths.at(idx).at(i);
+          if (altIdx > 0) {
+            fprintf(t->oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+                    s->seq.ident(),
+                    (gts->at(i)->_pos+1),
+                    gts->at(i)->alleles->at(0),
+                    gts->at(i)->alleles->at(altIdx)
+                    );
+          }
+        }
+      }
+
+      fprintf(t->oDebug->file(), "\n");
+    }
+
+    //  Generate output VCFs.
+
+    // Experimental: output vcf according to k*
+    if (g->bykstar) {
+      fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
+    }
+
+    // Filter vcf and print as it was in the original vcf, conservatively
+    else {
+      vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+
+      for (uint64 i = 0; i < records.size(); i++)
+        records.at(i)->save(t->oVcf);
+    }
+
+    //  Cleanup.
+
+    delete   seqMer;
+    delete[] refTemplate;
+  }  //  Over posGTlist.
 }
 
 
@@ -424,6 +372,21 @@ outputVariants(void *G, void *S) {
   merfinInput   *s = (merfinInput *)S;
 
   fprintf(stderr, "Output sequence %s\n", s->seq.ident());
+
+  //  Open the output file and write headers.
+
+  if (g->oVCF == nullptr) {
+    g->oVCF = new compressedFileWriter(concat(g->outName, ".polish.vcf"));
+
+    for (string header : g->inVcf->getHeaders())
+      fprintf(g->oVCF->file(), "%s\n", header.c_str());
+  }
+
+  //
+
+
+
+  //  Bye.
 
   delete s;
 }

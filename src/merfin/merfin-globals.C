@@ -89,14 +89,14 @@ merfinGlobal::getK(kmer     fmer,
   else if (value < peak)
     readK = 1;
   else
-    readK = round((value) / (double)peak);
+    readK = round(value / peak);
 
   //  But if there are pre-loaded probabilities, use those.
 
   if ((value > 0) &&
-      (value < copyKmerK.size())) {
-    readK = copyKmerK[value];
-    prob  = copyKmerP[value];
+      (value <= copyKmerK.size())) {
+    readK = copyKmerK[value-1];
+    prob  = copyKmerP[value-1];
   }
 
   //  Another lookup to get the assembly values.
@@ -174,6 +174,15 @@ merfinGlobal::open_Inputs(void) {
   //  but we don't check anything here.
 
   if (vcfName != nullptr) {
+    fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
     inVcf = new vcfFile(vcfName);
+  }
+
+  //  Process the vcf.  Only needded for -vmer mode.
+
+  if (inVcf) {
+    fprintf(stderr, "Merge variants within %u-mer bases, splitting combinations greater than %u.\n",
+            kmer::merSize(), comb);
+    inVcf->mergeChrPosGT(kmer::merSize(), comb, nosplit);
   }
 }

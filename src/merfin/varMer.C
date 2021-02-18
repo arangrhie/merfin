@@ -31,9 +31,6 @@
 #include <cmath>
 #include <algorithm>
 
-uint64 
-varMer::peak = 0;
-
 void
 varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
 
@@ -49,7 +46,7 @@ varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, v
 }
 
 void
-varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, merfinGlobal &G) {
+varMer::score(merfinGlobal *g) {
 
   //  iterate through each base and get kmer
   uint32 numM;  // num. missing kmers
@@ -82,50 +79,50 @@ varMer::score(merylExactLookup *rlookup, merylExactLookup *alookup, merfinGlobal
       asmK  = 0;
 
       if (kiter.isValid()) {
-		  //  we only need readK and asmK, no need to get the kMetric here yet
-		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
-      G.getK(kiter.fmer(), kiter.rmer(), readK, asmK, prob);
-		  //  fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
-	  }		  
-	  // store difference in kmer count accounting for uncertainty in the estimate of readK
-	  oDeltak = abs(readK - asmK) * prob;
+        //  we only need readK and asmK, no need to get the kMetric here yet
+        //fprintf(stderr, "[ DEBUG ] :: idx %u -- has a valid kmer. getKmetric()..\n", idx);
+        g->getK(kiter.fmer(), kiter.rmer(), readK, asmK, prob);
+        //fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
+      }
+      // store difference in kmer count accounting for uncertainty in the estimate of readK
+      oDeltak = abs(readK - asmK) * prob;
 
-	  //  fprintf(stderr, "[ DEBUG ] :: is the idx a newly introduced kmer? Check the idx (%u) falls in any of the %lu idxPaths.at(%d)\n", idx, idxPaths.at(ii).size(), ii);
-	  //  fprintf(stderr, "[ DEBUG ] :: size of idxPaths.at(%d)=%lu | lenPaths.at(%d)=%lu | gtPath.at(%d)=%lu\n", ii, idxPaths.at(ii).size(), ii, lenPaths.at(ii).size(), ii, gtPaths.at(ii).size());
-	  for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
-		uint32 idxPath = idxPaths.at(ii).at(jj);
-		uint32 lenPath = lenPaths.at(ii).at(jj);
-		int    gtPath  = gtPaths.at(ii).at(jj);
-		//  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
-		if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
-		  asmK++; // +1 as we are introducing a new kmer
-		  break;  // add only once
-		}
-	  }
-			//  fprintf(stderr, "\n");
+      //  fprintf(stderr, "[ DEBUG ] :: is the idx a newly introduced kmer? Check the idx (%u) falls in any of the %lu idxPaths.at(%d)\n", idx, idxPaths.at(ii).size(), ii);
+      //  fprintf(stderr, "[ DEBUG ] :: size of idxPaths.at(%d)=%lu | lenPaths.at(%d)=%lu | gtPath.at(%d)=%lu\n", ii, idxPaths.at(ii).size(), ii, lenPaths.at(ii).size(), ii, gtPaths.at(ii).size());
+      for ( int jj = 0; jj < idxPaths.at(ii).size(); jj++) {
+        uint32 idxPath = idxPaths.at(ii).at(jj);
+        uint32 lenPath = lenPaths.at(ii).at(jj);
+        int    gtPath  = gtPaths.at(ii).at(jj);
+        //  fprintf(stderr, "\tidxPath:%u len:%u gt:%d", idxPath, lenPath, gtPath);
+        if ( gtPath > 0 && idxPath + 1 - kmer::merSize() <= idx && idx < idxPath + lenPath + kmer::merSize()) {
+          asmK++; // +1 as we are introducing a new kmer
+          break;  // add only once
+        }
+      }
+      //  fprintf(stderr, "\n");
 
-	  //  re-define k* given rounded readK and asmK, in absolute values
-	  if (readK == 0) {
-		kMetric = -1;  // use 0 if we are using non-abs k*
-		numM++;
+      //  re-define k* given rounded readK and asmK, in absolute values
+      if (readK == 0) {
+        kMetric = -1;  // use 0 if we are using non-abs k*
+        numM++;
 
-	  } else if (readK > asmK) {
-		kMetric = readK / asmK - 1;
+      } else if (readK > asmK) {
+        kMetric = readK / asmK - 1;
 
-	  } else {
-		kMetric = asmK / readK - 1;
-	  }
+      } else {
+        kMetric = asmK / readK - 1;
+      }
       // recompute difference in kmer count if the variant is introduced
-	  nDeltak = abs(readK - asmK) * prob;
+      nDeltak = abs(readK - asmK) * prob;
 
-	  // store new k*
-	  m_ks.push_back(kMetric);
-	  // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
+      // store new k*
+      m_ks.push_back(kMetric);
+      // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
 
-	  // store the delta k* when the variant is applied
-	  m_dks.push_back(oDeltak-nDeltak);
-	  
-	  idx++;	 
+      // store the delta k* when the variant is applied
+      m_dks.push_back(oDeltak-nDeltak);
+      
+      idx++;     
     }
 
     numMs.push_back(numM);
@@ -181,8 +178,8 @@ varMer::bestVariantOriginalVCF() {
     // sort by the Avg. Absolute K* closest to 0
     // and the second best
     for ( int i = 0; i < idxs.size(); i++ ) {
-        int idx = idxs.at(i);
-          avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
+      int idx = idxs.at(i);
+      avgKs.insert(pair<double, int>(getAvgAbsK(idx), idx));
     }
     multimap<double, int >::iterator it = avgKs.begin();
     double  avgK1 = (*it).first;
@@ -195,14 +192,14 @@ varMer::bestVariantOriginalVCF() {
     if ( kDiff < 0 ) kDiff *= -1;
     
     if ( avgK1 == avgK2 || kDiff < 0.05 ) {
-        // if equaly scored, chose the longer allele as hap1
-        if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
-              return getOriginalVCF(idx1);
-        } else {
-              return getOriginalVCF(idx2);
-        }
-    } else {
+      // if equaly scored, chose the longer allele as hap1
+      if ( seqs.at(idx1).length() >= seqs.at(idx2).length() ) {
         return getOriginalVCF(idx1);
+      } else {
+        return getOriginalVCF(idx2);
+      }
+    } else {
+      return getOriginalVCF(idx1);
     }
   }
 
@@ -304,35 +301,35 @@ varMer::getHetRecord(int idx1, int idx2) {
     // alt1 == ref && alt2 == ref: ignore
     if ( altIdx1 + altIdx2 > 0 ) {
       records = records + posGt->_chr + "\t" + 
-                to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-                posGt->_gts->at(i)->alleles->at(0) + "\t";
+        to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
+        posGt->_gts->at(i)->alleles->at(0) + "\t";
 
       // alt1 == alt2: 1/1
       // Sometimes, there are cases where path is different but the allele chosen overlaps
       if ( altIdx1 == altIdx2 ) {
         records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
-                  "PASS\t.\tGT\t1/1\n";
+          "PASS\t.\tGT\t1/1\n";
 
 
       }
       // alt1 == ref && alt2 == alt: 0/1
       else if ( altIdx1 == 0 && altIdx2 > 0 ) {
         records = records + posGt->_gts->at(i)->alleles->at(altIdx2) + "\t.\t" +
-                  "PASS\t.\tGT\t0/1\n";
+          "PASS\t.\tGT\t0/1\n";
 
       } 
       // alt1 == alt && alt2 == alt: 1/2
       else if ( altIdx1 > 0 && altIdx2 > 0 ) {
         records = records + posGt->_gts->at(i)->alleles->at(altIdx1) +
-                  "," +
-                  posGt->_gts->at(i)->alleles->at(altIdx2) +
-                  "\t.\t" +
-                  "PASS\t.\tGT\t1/2\n";
+          "," +
+          posGt->_gts->at(i)->alleles->at(altIdx2) +
+          "\t.\t" +
+          "PASS\t.\tGT\t1/2\n";
       }
       // alt1 == alt && alt2 == ref: 1/0
       else if ( altIdx1 > 0 && altIdx2 == 0 ) {
         records = records + posGt->_gts->at(i)->alleles->at(altIdx1) + "\t.\t" +
-                  "PASS\t.\tGT\t1/0\n";
+          "PASS\t.\tGT\t1/0\n";
       }
     }
   }
@@ -347,10 +344,10 @@ varMer::getHomRecord(int idx) {
     if ( altIdx > 0 ) {
       // altIdx is the reference allele: ignore
       records = records + posGt->_chr + "\t" +
-                to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-                posGt->_gts->at(i)->alleles->at(0) + "\t" +
-                posGt->_gts->at(i)->alleles->at(altIdx) + "\t.\t" +
-                "PASS\t.\tGT\t1/1\n";
+        to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
+        posGt->_gts->at(i)->alleles->at(0) + "\t" +
+        posGt->_gts->at(i)->alleles->at(altIdx) + "\t.\t" +
+        "PASS\t.\tGT\t1/1\n";
     }
   }
   return records;
@@ -425,7 +422,7 @@ varMer::getMedAbsK(int idx) {
 
   //  no k* >= 0
   if (i == kstr.size())
-     return -1;
+    return -1;
   else
     return kstr.at(i + ((kstr.size() - i)/2));
 }
@@ -462,5 +459,5 @@ varMer::getTotdK(int idx) {
     sum += dkstr.at(i);
   }
 
-    return sum;
+  return sum;
 }

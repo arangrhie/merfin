@@ -84,7 +84,7 @@ main(int32 argc, char **argv) {
       G->readDBname = argv[++arg];
 
     } else if (strcmp(argv[arg], "-peak") == 0) {
-      G->peak = strtouint64(argv[++arg]);
+      G->peak = strtodouble(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-lookup") == 0) {
       G->pLookupTable = argv[++arg];
@@ -258,7 +258,8 @@ main(int32 argc, char **argv) {
 
   //  Configure the sweatShop.
 
-  sweatShop  *ss = nullptr;
+  sweatShop       *ss = nullptr;
+  merfinThrData   *td = new merfinThrData [G->threads];
 
   //  Check report type
 
@@ -283,8 +284,10 @@ main(int32 argc, char **argv) {
 
   ss->setNumberOfWorkers(G->threads);
 
-  //for (uint32 ii=0; ii<G->_numThreads; ii++)
-  //  ss->setThreadData(ii, TD + ii);
+  for (uint32 tt=0; tt<G->threads; tt++) {
+    td[tt].threadID = tt;
+    ss->setThreadData(tt, td + tt);
+  }
 
   ss->setLoaderBatchSize(1);
   ss->setLoaderQueueSize(G->threads * 2);
@@ -299,9 +302,11 @@ main(int32 argc, char **argv) {
 
   G->reportHistogram();
 
-
   //  Cleanup and quit.
-  delete G;
+  delete [] td;
+  delete    ss;
+
+  delete    G;
 
   fprintf(stderr, "Bye!\n");
   return(0);

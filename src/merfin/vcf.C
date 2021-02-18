@@ -250,11 +250,11 @@ vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
 
   map<string , vector<posGT*> *>::iterator it;
 
-  #pragma omp parallel private(it)
+  //#pragma omp parallel private(it)
   {
   for ( it = _mapChrPosGT->begin(); it != _mapChrPosGT->end(); it++ ) {
     //  for each chromosome - posGTlist
-    #pragma omp single nowait
+    //#pragma omp single nowait
     {
 
     //  Initialize variables

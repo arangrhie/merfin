@@ -39,7 +39,7 @@ public:
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup, merfinGlobal &G);
+  void score(merfinGlobal *g);
 
   string  bestVariant();
   vector<vcfRecord*>  bestVariantOriginalVCF();
@@ -53,9 +53,6 @@ public:
   double  getAvgAbsdK(int idx, double RefAvgK);  // avg. k* difference between reference and alternate
   double  getTotdK(int idx);  // delta k* when variant is applied
 
-  static void   setPeak(uint64 p = 0) { peak   = p;  };
-  static uint64 getPeak()         { return peak; };
-
 public:
   vector< vector<int> >     gtPaths;  //  contains idx
   vector< vector<uint32> >  idxPaths;  //  contains idx
@@ -67,9 +64,6 @@ public:
   multimap<double, int, greater <int> >    avgKs;  //  avg |k*|,  sorted from lowest to greatest, with idx on the second
   posGT*               posGt;
   vector< uint32 >     order;
-
-private:
-  static uint64        peak;
 };
 
 #endif  //  AS_UTL_VARMER_H

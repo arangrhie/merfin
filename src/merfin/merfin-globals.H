@@ -52,6 +52,8 @@ public:
     delete [] dumpReadK;
     delete [] dumpAsmK;
     delete [] dumpKMetric;
+
+    //delete [] vmers;
   };
 
   //  Input data.
@@ -79,8 +81,40 @@ public:
 
   //  Variant results.
 
+  //uint64     vmersLen    = 0;
+  //uint64     vmersMax    = 0;
+  //char      *vmers       = nullptr;
 };
 
+
+
+////////////////////////////////////////
+//
+//  This object holds per-thread data for -vmer work.
+//   - a handful of arrays that we can recycle for each input
+//   - a per-thread debug logging file
+//
+class
+merfinThrData {
+public:
+  merfinThrData() {
+  }
+  ~merfinThrData() {
+    delete oDebug;
+    delete oVcf;
+  }
+
+  //  Our ident.
+
+  uint32                  threadID;
+
+  //  For debug logging.
+
+  compressedFileWriter   *oDebug   = nullptr;
+  uint64                  varMerId = 0;
+
+  compressedFileWriter   *oVcf     = nullptr;
+};
 
 
 
@@ -122,7 +156,14 @@ public:
   //   - dumpOutFile is created on demand in the output thread.
 public:
   bool                    skipMissing  = false;
-  compressedFileWriter   *dumpOutFile   = nullptr;
+  compressedFileWriter   *dumpOutFile  = nullptr;
+
+  //  Parameters for vmer mode.
+  //   - dumpOutFile is created on demand in the output thread.
+public:
+  compressedFileWriter   *oVCF         = nullptr;
+
+
 
 
 
@@ -180,7 +221,7 @@ public:
 
 
 public:
-  uint64                  peak          = 0;  //  was peak = ipeak at the start of processing
+  double                  peak          = 0;
   bool                    nosplit       = false;
   bool                    bykstar       = true;
   uint32                  comb          = 15;
