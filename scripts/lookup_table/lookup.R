@@ -635,9 +635,19 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, plo
 
   ## Fitted histogram  
 
-  pdf(paste(foldername, "/fitted_hist.pdf", sep=""),width=plot_size,height=plot_size)
+  png(paste(foldername, "/fitted_hist.png", sep=""), height = plot_size*300, width = plot_size*300, res=300)
   
-  plot(kmer_hist_orig, type="n", main="Fitted curves\n", xlab="Coverage", ylab="Frequency", ylim=c(0,y_limit), xlim=c(0,x_limit),cex.lab=font_size, cex.axis=font_size, cex.main=font_size, cex.sub=font_size)
+  layout(matrix(c(1,2), nrow=2, byrow = TRUE),heights=lcm(c(11,5.5)))
+  par(mar=c(0,5,1,1))
+  
+  plot(kmer_hist_orig, type="n", ylab="Frequency", 
+       xlab=NULL, ylim=c(0,y_limit), xlim=c(0,akcov*5),
+        cex.main=font_size, cex.sub=font_size, cex.axis=font_size, cex.lab=font_size,
+       xaxt='n', yaxt='n')
+  myTicks = axTicks(4)
+  myTicks[1]<-0
+  axis(2, at=myTicks, labels=myTicks, cex.axis=font_size,
+       cex.lab=font_size)
   
   peaks<-akcov * 1:6
 
@@ -650,7 +660,7 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, plo
     lines(fitted_hist[,i]*amlen, type="l", lwd=1.5, col=colors[i+1])
   }
 
-  lines(rowSums(fitted_hist*amlen), col="gray", lwd=1, lty=2)
+  lines(rowSums(fitted_hist*amlen), col="darkgray", lwd=2, lty=2)
   
   legend_names=c("0-copy", "1-copy", "2-copy", "3-copy", "4-copy")
   legend_lty=c("solid", "solid", "solid", "solid", "solid")
@@ -658,13 +668,11 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, plo
   
   legend("topright",
 		 ##legend(exp(.65 * log(max(x))), 1.0 * max(y),
-		 legend=c(legend_names[1:(ncol(fitted_hist)+1)],"full"),
-		 lty=c(legend_lty[1:(ncol(fitted_hist)+1)], "dashed"),
-		 lwd=c(legend_lwd[1:(ncol(fitted_hist)+1)], 2),
-		 col=c(colors[1:(ncol(fitted_hist)+1)], "gray"),
+		 legend=c("Observed",legend_names[1:(ncol(fitted_hist)+1)],"Full model"),
+		 lty=c("solid",legend_lty[1:(ncol(fitted_hist)+1)], "dashed"),
+		 lwd=c(2, legend_lwd[1:(ncol(fitted_hist)+1)], 3),
+		 col=c(COLOR_HIST,colors[1:(ncol(fitted_hist)+1)], "darkgray"),
 		 bg="white")
-  
-  dev.off()
 
   ## Generate lookup_table
   
@@ -697,16 +705,20 @@ report_results<-function(kmer_hist,kmer_hist_orig, k, container, foldername, plo
 
   ## Plot lookup values
   
-  plot_table<-data.frame(plot_table)
-  pdf(paste(foldername, "/prob.pdf", sep=""),width=plot_size,height=plot_size)  
-  plot(plot_table$X1,type="n", xlab="Coverage", ylab="Probability",xlim=c(0,akcov*5), ylim=c(0,1))
+  par(mar=c(5,5,0,1))
   
-  peaks<-akcov * 1:5  
-  abline(v=peaks, col="black", lty=2, lwd=0.1) 
+  plot_table<-data.frame(plot_table)
+  plot(plot_table$X1,type="n", xlab="Coverage", ylab="Probability",xlim=c(0,akcov*5), ylim=c(0,1), cex.lab=font_size, cex.axis=font_size, cex.main=font_size, cex.sub=font_size, yaxt='n')
+
+  abline(v=peaks, col="black", lty=2, lwd=0.3)
+    
   for (i in 1:(ncol(fitted_hist)+1)) {
     lines(plot_table[,i], type="l", lwd=1.5, col=colors[i])
   }
+  axis(2, at=c(0,0.5,1), labels=c(0,0.5,1), cex.axis=font_size,
+       cex.lab=font_size)
   
+  dev.off()
 }
 
 ## Main program starts here
