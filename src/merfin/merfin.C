@@ -652,30 +652,29 @@ varMers(char			 *seqName,
           }
         }
         fprintf(oDebug->file(), "\n");
-        fflush(oDebug->file());
       }
 
       // generate vcfs
       if (bykstar) {
         // Experimental: output vcf according to k*
         fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
-        fflush(oVcf->file());
       } else {
         // Filter vcf and print as it was in the original vcf, conservatively
         vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
         if (records.size() > 0) {
           for (uint64 i = 0; i < records.size(); i++) {
             records.at(i)->save(oVcf);
-            fflush(oVcf->file());
           }
         }
       }
    
       delete seqMer;
       delete[] refTemplate;
-      
     }  
   }
+
+  delete oVcf;
+  delete oDebug;
 }
 
 int
