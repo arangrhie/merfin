@@ -29,9 +29,6 @@
 #include <cmath>
 #include <algorithm>
 
-double 
-varMer::peak = 0;
-
 void
 varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
 

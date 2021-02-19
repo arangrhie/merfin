@@ -55,9 +55,6 @@ public:
   double  getAvgAbsdK(int idx, double RefAvgK);  // avg. k* difference between reference and alternate
   double  getTotdK(int idx);  // delta k* when variant is applied
 
-  static void   setPeak(double p = 0) { peak   = p;  };
-  static double getPeak()         { return peak; };
-
 public:
   vector< vector<int> >     gtPaths;  //  contains idx
   vector< vector<uint32> >  idxPaths;  //  contains idx
@@ -69,9 +66,6 @@ public:
   multimap<double, int, greater <int> >    avgKs;  //  avg |k*|,  sorted from lowest to greatest, with idx on the second
   posGT*               posGt;
   vector< uint32 >     order;
-
-private:
-  static double        peak;
 };
 
 #endif  //  AS_UTL_VARMER_H
