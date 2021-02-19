@@ -619,7 +619,7 @@ varMers(char			 *seqName,
 
       //  print to debug
       for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
+        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
           varMerId++,
           seq.name(),
           rStart,
