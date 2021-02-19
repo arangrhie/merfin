@@ -333,16 +333,9 @@ histKmetric(char               *outName,
             vector<string>      copyKmerDict,
             int                 threads) {
 
-  dnaSeq seq;
-  double prob = 1;
-  double asmK;
-  double readK;
-  double kMetric;
   uint64 tot_missing = 0;
   uint64 tot_kasm = 0;
-  uint64 fValue = 0;
-  uint64 rValue = 0;
-  kmerIterator kiter;
+  double tot_overcpy = 0;
   uint32 ksize = kmer::merSize();
   
   //  compressedFileWriter *k_values = new compressedFileWriter(concat(outName, ".gz"));
@@ -354,8 +347,6 @@ histKmetric(char               *outName,
   uint64 * overHist = new uint64[histMax];	// positive k* values, overHist[0] = bin 0.0 ~ 0.2
   uint64 * undrHist = new uint64[histMax];	// negative k* values
   uint64   missing  = 0;			// missing kmers (0) 
-  double   roundedReadK = 0;
-  double   overcpy  = 0;
 
   for (uint64 ii = 0; ii < histMax; ii++) {
     overHist[ii] = 0;
@@ -375,81 +366,91 @@ histKmetric(char               *outName,
   }
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
+   
 
-#pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
-  {
-    
-#pragma omp for reduction (+:overcpy) schedule(static,1)
-    for (uint32 seqId=0; seqId<ctgn;seqId++)
-      {
+#pragma omp parallel for schedule(static,1) num_threads(threads)
+  for (uint32 seqId=0; seqId<ctgn;seqId++) {
+
+    uint64 fValue = 0;
+    uint64 rValue = 0;
+    double kMetric;
+    dnaSeq seq;
+
 #pragma omp critical
-        {
-          sfile->loadSequence(seq);
-        }
+		sfile->loadSequence(seq);
 	
-        kmerIterator kiter(seq.bases(), seq.length());
-        uint64 missing = 0;
-        uint64 kasm = 0;
-        double err;
-        double qv;
-        uint64 * undrHist_pvt = new uint64[histMax];
-        uint64 * overHist_pvt = new uint64[histMax];
+		kmerIterator kiter(seq.bases(), seq.length());
+		uint64 missing = 0;
+		uint64 kasm = 0;
+		double err;
+		double qv;
+		uint64 * undrHist_pvt = new uint64[histMax];
+		uint64 * overHist_pvt = new uint64[histMax];
+    double   overcpy = 0;
 
-        for (uint64 ii = 0; ii < histMax; ii++) {
-          overHist_pvt[ii] = 0;
-          undrHist_pvt[ii] = 0;
-        }
+    for (uint64 ii = 0; ii < histMax; ii++) {
+      overHist_pvt[ii] = 0;
+      undrHist_pvt[ii] = 0;
+    }
 
-        while (kiter.nextBase()) {
-          if (kiter.isValid() == true) {
-            kasm++;
-            getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-            kMetric = getKmetric(readK, asmK);
+		while (kiter.nextBase()) {
+		  if (kiter.isValid() == true) {
+        kasm++;
 
-            if ( readK == 0 ) {
-              missing++;
-            } else if ( readK < asmK ) {
-              undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-              //  TODO: Check if this kmer was already counted. Only if not,
-              //  overcpy += (asmK - readK)
-              overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
-            } else { // readK > asmK
-              overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
-            }
-          }
-        }
+        double asmK;
+        double readK;
+        double prob;
+
+        getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+
+        double kMetric = getKmetric(readK, asmK);
+
+				if ( readK == 0 ) {
+				  missing++;
+				} else if ( readK < asmK ) {
+				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+				  //  TODO: Check if this kmer was already counted. Only if not,
+				  //  overcpy += (asmK - readK)
+          overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
+				} else { // readK > asmK
+				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
+				}
+		  }
+		}
 	
 #pragma omp critical
-        {
-          tot_missing+=missing;
-          tot_kasm+=kasm;
-#pragma omp flush(tot_missing,tot_kasm)
+		{
+			tot_missing +=missing;
+			tot_kasm    +=kasm;
+      tot_overcpy +=overcpy;
 
-        	for(uint64 ii = histMax - 1; ii > 0; ii--) {
-            undrHist[ii] += undrHist_pvt[ii];
-          }
-          undrHist[0] += undrHist_pvt[0];
-          overHist[0] += overHist_pvt[0];
-          for (uint64 ii = 1; ii < histMax; ii++) {
-            overHist[ii] += overHist_pvt[ii];
-          }
-		
-          err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
-          qv = -10*log10(err);
-		
-          fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
-                  seq.name(),
-                  missing,
-                  tot_missing,
-                  kasm,
-                  qv
-                  );
-        }
+      //#pragma omp flush(tot_missing,tot_kasm)
 
-        delete [] undrHist_pvt;  undrHist_pvt = nullptr;
-        delete [] overHist_pvt;  undrHist_pvt = nullptr;
+      for(uint64 ii = histMax - 1; ii > 0; ii--) {
+        undrHist[ii] += undrHist_pvt[ii];
       }
+      undrHist[0] += undrHist_pvt[0];
+      overHist[0] += overHist_pvt[0];
+      for (uint64 ii = 1; ii < histMax; ii++) {
+        overHist[ii] += overHist_pvt[ii];
+      }
+		
+			err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
+			qv = -10*log10(err);
+		
+			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
+              seq.name(),
+              missing,
+              tot_missing,
+              kasm,
+              qv
+              );
+		}
+
+    delete [] undrHist_pvt;  undrHist_pvt = nullptr;
+    delete [] overHist_pvt;  undrHist_pvt = nullptr;
   }
+  
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
     if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
@@ -460,12 +461,12 @@ histKmetric(char               *outName,
   }
   fprintf(stderr, "\n");
   fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
-  fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", overcpy);
+  fprintf(stderr, "K-mers overly represented in assembly: %.2f\n", tot_overcpy);
   fprintf(stderr, "K-mers found in the assembly: %lu\n", tot_kasm);
   double err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   double qv = -10*log10(err);
   fprintf(stderr, "Missing QV: %.2f\n", qv);
-  tot_missing += (uint64) ceil(overcpy);
+  tot_missing += (uint64) ceil(tot_overcpy);
   err = 1 - pow((1-((double) tot_missing) / tot_kasm), (double) 1/ksize);
   qv = -10*log10(err);
   fprintf(stderr, "Merfin QV*: %.2f\n", qv);
