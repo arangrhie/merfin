@@ -44,9 +44,9 @@ func_t getreadK;
 
 uint64 getIndex(vector<string> v, string K) 
 { 
-    auto it = find(v.begin(), v.end(), K); 
-    int index = distance(v.begin(), it);  
-    return index;
+  auto it = find(v.begin(), v.end(), K); 
+  int index = distance(v.begin(), it);  
+  return index;
 } 
 
 char*
@@ -110,7 +110,7 @@ traverse(uint32          idx,
         //  If the next variant overlaps, skip it
         if (idx + 1 < refIdxList.size()) {
           for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-             // fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
+            // fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
             if ( refIdxList.at(i) < refAffected ) {
               //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u. skip %u.\n", refIdxList.at(i), refAffected, refIdxList.at(i));
               overlaps = true;
@@ -128,18 +128,18 @@ traverse(uint32          idx,
         if ( overlaps && idx == refIdxList.size() - 1) {
           seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
           /******* DEBUG *********
-          fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d , skipped = %d\n", refIdxList.at(idx), replaced.c_str(), j, skipped);
-          fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
-          for (int hh = 0; hh < path.size(); hh++) {
-            fprintf(stderr, "\t%d,", path.at(hh));
-          }
-          fprintf(stderr, "\n");
-          fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
-          for (int hh = 0; hh < refIdxList.size(); hh++) {  fprintf(stderr, "\t%d,", refIdxList.at(hh));  }
-          fprintf(stderr, "\n");
-          fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
-          for (int hh = 0; hh < refLenList.size(); hh++) {  fprintf(stderr, "\t%d,", refLenList.at(hh));  }
-          fprintf(stderr, "\n\n");
+                   fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d , skipped = %d\n", refIdxList.at(idx), replaced.c_str(), j, skipped);
+                   fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
+                   for (int hh = 0; hh < path.size(); hh++) {
+                   fprintf(stderr, "\t%d,", path.at(hh));
+                   }
+                   fprintf(stderr, "\n");
+                   fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
+                   for (int hh = 0; hh < refIdxList.size(); hh++) {  fprintf(stderr, "\t%d,", refIdxList.at(hh));  }
+                   fprintf(stderr, "\n");
+                   fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
+                   for (int hh = 0; hh < refLenList.size(); hh++) {  fprintf(stderr, "\t%d,", refLenList.at(hh));  }
+                   fprintf(stderr, "\n\n");
           ************************/
           for (int k = 0; k < skipped; k++) {
             path.pop_back();
@@ -164,19 +164,19 @@ traverse(uint32          idx,
       if (idx == refIdxList.size() - 1) {
         seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
         /********* DEBUG **********
-          fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
-          fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
-          for (int hh = 0; hh < path.size(); hh++) {
-          fprintf(stderr, "\t%d,", path.at(hh));
-          }
-          fprintf(stderr, "\n");
-          fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
-          for (int hh = 0; hh < refIdxList.size(); hh++) {	fprintf(stderr, "\t%d,", refIdxList.at(hh));	}
-          fprintf(stderr, "\n");
-          fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
-          for (int hh = 0; hh < refLenList.size(); hh++) {	fprintf(stderr, "\t%d,", refLenList.at(hh));	}
-          fprintf(stderr, "\n");
-         ***************************/
+                   fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
+                   fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
+                   for (int hh = 0; hh < path.size(); hh++) {
+                   fprintf(stderr, "\t%d,", path.at(hh));
+                   }
+                   fprintf(stderr, "\n");
+                   fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
+                   for (int hh = 0; hh < refIdxList.size(); hh++) {	fprintf(stderr, "\t%d,", refIdxList.at(hh));	}
+                   fprintf(stderr, "\n");
+                   fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
+                   for (int hh = 0; hh < refLenList.size(); hh++) {	fprintf(stderr, "\t%d,", refLenList.at(hh));	}
+                   fprintf(stderr, "\n");
+        ***************************/
       }
 
       //  fprintf(stderr, "[ DEBUG ] :: idx = %u\n", idx);
@@ -205,7 +205,7 @@ traverse(uint32          idx,
 
 void
 dumpKmetric(char               *outName,
-			char			   *seqName,
+            char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
@@ -241,75 +241,75 @@ dumpKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
     
-    #pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
-    for (uint64 seqId=0; seqId<ctgn;seqId++)
+#pragma omp parallel for private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads) schedule(static,1)
+  for (uint64 seqId=0; seqId<ctgn;seqId++)
     {
 
-	#pragma omp critical
-	{
-	sfile->loadSequence(seq);      
-    }
+#pragma omp critical
+      {
+        sfile->loadSequence(seq);      
+      }
 
-    kmerIterator kiter(seq.bases(), seq.length());
-    uint64 missing = 0;
-    uint64 tot = 0;
+      kmerIterator kiter(seq.bases(), seq.length());
+      uint64 missing = 0;
+      uint64 tot = 0;
     
-	char filename[64];
+      char filename[64];
 
-	FILE *out;
-	sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
+      FILE *out;
+      sprintf(filename, "%s_%lu.dump", tmp.c_str(), seqId);
 	
-	auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
-	if (!p.second)
-	{
-	  fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
-	  exit (-1);	  
-	}
+      auto p = order.insert(pair<string, uint64>(seq.name(), seqId));
+      if (!p.second)
+        {
+          fprintf(stderr, "\nSequence name used twice: %s\nPlease use only unique names.\n", seq.name());
+          exit (-1);	  
+        }
 	
-	out = fopen(filename, "w");
+      out = fopen(filename, "w");
 
-	while (kiter.nextBase()) {
-	  if (kiter.isValid() == true) {
-		tot++;
-		getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-		kMetric = getKmetric(readK, asmK);
-		if ( readK == 0 ){
-		  missing++;
-		}
+      while (kiter.nextBase()) {
+        if (kiter.isValid() == true) {
+          tot++;
+          getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+          kMetric = getKmetric(readK, asmK);
+          if ( readK == 0 ){
+            missing++;
+          }
 
-		if ( skipMissings )  continue;
+          if ( skipMissings )  continue;
 
-		fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
-				 seq.name(),
-				 kiter.position(),
-				 readK,
-				 asmK,
-				 kMetric
-				 );
+          fprintf(out, "%s\t%lu\t%.2f\t%.2f\t%.2f\n",
+                  seq.name(),
+                  kiter.position(),
+                  readK,
+                  asmK,
+                  kMetric
+                  );
 
 
-	  }
-	}
-	fclose(out);
-	#pragma omp critical
-	{
-		tot_missing+=missing;
-		#pragma omp flush(tot_missing)
-		fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
-				 seq.name(),
-				 missing,
-				 tot_missing,
-				 tot
-				 );
-	}		
-  }	
+        }
+      }
+      fclose(out);
+#pragma omp critical
+      {
+        tot_missing+=missing;
+#pragma omp flush(tot_missing)
+        fprintf(stderr, "%s\t%lu\t%lu\t%lu\n",
+                seq.name(),
+                missing,
+                tot_missing,
+                tot
+                );
+      }		
+    }	
 
 	ofstream ofile(outName, ios::out | ios::app); 
 	char filename[64];
 	
-    sfile = new dnaSeqFile(seqName);
+  sfile = new dnaSeqFile(seqName);
 
-    for (uint32 seqId=0; sfile->loadSequence(seq);seqId++) {
+  for (uint32 seqId=0; sfile->loadSequence(seq);seqId++) {
     
 		sprintf(filename, "%s_%lu.dump", tmp.c_str(), order.at(seq.name()));
 		
@@ -321,12 +321,12 @@ dumpKmetric(char               *outName,
 		
 		remove(filename);
 
-    }
+  }
 }
 
 void
 histKmetric(char               *outName,
-	        char			   *seqName,
+            char			   *seqName,
             dnaSeqFile         *sfile,
             merylExactLookup   *rlookup,
             merylExactLookup   *alookup,
@@ -376,87 +376,87 @@ histKmetric(char               *outName,
   
   fprintf(stderr, "\nNumber of contigs: %u\n", ctgn);
 
-  #pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
+#pragma omp parallel private(fValue, rValue, readK, asmK, seq, kMetric, kiter) num_threads(threads)
   {
     
-    #pragma omp for reduction (+:overcpy) schedule(static,1)
+#pragma omp for reduction (+:overcpy) schedule(static,1)
     for (uint32 seqId=0; seqId<ctgn;seqId++)
-    {
-		#pragma omp critical
-		{
-		sfile->loadSequence(seq);
-		}
+      {
+#pragma omp critical
+        {
+          sfile->loadSequence(seq);
+        }
 	
-		kmerIterator kiter(seq.bases(), seq.length());
-		uint64 missing = 0;
-		uint64 kasm = 0;
-		double err;
-		double qv;
-		uint64 * undrHist_pvt = new uint64[histMax];
-		uint64 * overHist_pvt = new uint64[histMax];
+        kmerIterator kiter(seq.bases(), seq.length());
+        uint64 missing = 0;
+        uint64 kasm = 0;
+        double err;
+        double qv;
+        uint64 * undrHist_pvt = new uint64[histMax];
+        uint64 * overHist_pvt = new uint64[histMax];
 
-    for (uint64 ii = 0; ii < histMax; ii++) {
-      overHist_pvt[ii] = 0;
-      undrHist_pvt[ii] = 0;
-    }
+        for (uint64 ii = 0; ii < histMax; ii++) {
+          overHist_pvt[ii] = 0;
+          undrHist_pvt[ii] = 0;
+        }
 
-		while (kiter.nextBase()) {
-		  if (kiter.isValid() == true) {
-			kasm++;
-			getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
-			kMetric = getKmetric(readK, asmK);
+        while (kiter.nextBase()) {
+          if (kiter.isValid() == true) {
+            kasm++;
+            getK(rlookup, alookup, kiter.fmer(), kiter.rmer(), copyKmerDict, readK, asmK, prob);
+            kMetric = getKmetric(readK, asmK);
 
-				if ( readK == 0 ) {
-				  missing++;
-				} else if ( readK < asmK ) {
-				  undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
-				  //  TODO: Check if this kmer was already counted. Only if not,
-				  //  overcpy += (asmK - readK)
-				  	overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
-				} else { // readK > asmK
-				  overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
-				}
-		  }
-		}
+            if ( readK == 0 ) {
+              missing++;
+            } else if ( readK < asmK ) {
+              undrHist_pvt[(uint64) (((-1 * kMetric) + 0.1) / 0.2)]++;
+              //  TODO: Check if this kmer was already counted. Only if not,
+              //  overcpy += (asmK - readK)
+              overcpy += (double) (1 - readK / asmK) * prob;  //  (asmK - readK) / asmK
+            } else { // readK > asmK
+              overHist_pvt[(uint64) ((kMetric + 0.1 ) / 0.2)]++;
+            }
+          }
+        }
 	
-		#pragma omp critical
-		{
-			tot_missing+=missing;
-			tot_kasm+=kasm;
-			#pragma omp flush(tot_missing,tot_kasm)
+#pragma omp critical
+        {
+          tot_missing+=missing;
+          tot_kasm+=kasm;
+#pragma omp flush(tot_missing,tot_kasm)
 
         	for(uint64 ii = histMax - 1; ii > 0; ii--) {
-            	undrHist[ii] += undrHist_pvt[ii];
-            }
-            undrHist[0] += undrHist_pvt[0];
-            overHist[0] += overHist_pvt[0];
-            for (uint64 ii = 1; ii < histMax; ii++) {
-            	overHist[ii] += overHist_pvt[ii];
-            }
+            undrHist[ii] += undrHist_pvt[ii];
+          }
+          undrHist[0] += undrHist_pvt[0];
+          overHist[0] += overHist_pvt[0];
+          for (uint64 ii = 1; ii < histMax; ii++) {
+            overHist[ii] += overHist_pvt[ii];
+          }
 		
-			err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
-			qv = -10*log10(err);
+          err = 1 - pow((1-((double) missing) / kasm), (double) 1/ksize);
+          qv = -10*log10(err);
 		
-			fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
-					 seq.name(),
-					 missing,
-					 tot_missing,
-					 kasm,
-					 qv
-					 );
-		}
+          fprintf(stderr, "%s\t%lu\t%lu\t%lu\t%.2f\n",
+                  seq.name(),
+                  missing,
+                  tot_missing,
+                  kasm,
+                  qv
+                  );
+        }
 
-    delete [] undrHist_pvt;  undrHist_pvt = nullptr;
-    delete [] overHist_pvt;  undrHist_pvt = nullptr;
-    }
+        delete [] undrHist_pvt;  undrHist_pvt = nullptr;
+        delete [] overHist_pvt;  undrHist_pvt = nullptr;
+      }
   }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
-     if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
+    if (undrHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * -0.2), undrHist[ii]);
   }
   fprintf(k_hist->file(), "%.1f\t%lu\n", 0.0, (undrHist[0]+overHist[0]));
   for (uint64 ii = 1; ii < histMax; ii++) {
-     if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
+    if (overHist[ii] > 0)  fprintf(k_hist->file(), "%.1f\t%lu\n", ((double) ii * 0.2), overHist[ii]);
   }
   fprintf(stderr, "\n");
   fprintf(stderr, "K-mers not found in reads (missing) : %lu\n", tot_missing);
@@ -545,141 +545,141 @@ varMers(char			 *seqName,
   // temporary sequence to hold ref bases
   char * refTemplate;
 
-    for (uint32 seqId=0; seqId<ctgn;seqId++)
+  for (uint32 seqId=0; seqId<ctgn;seqId++)
     {
   
-    sfile->loadSequence(seq);
+      sfile->loadSequence(seq);
   
-    //  for each seqId
-    seqHeader = string(seq.name());
-    fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
+      //  for each seqId
+      seqHeader = string(seq.name());
+      fprintf(stderr, "\nProcessing \'%s\'\n", seq.name());
 
-    //  in case no seq.name() available, ignore this seqHeader
-    if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
-      fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
-      continue;
-	}
-    //  get chr specific posGTs
-    posGTlist = mapChrPosGT->at(seq.name());
+      //  in case no seq.name() available, ignore this seqHeader
+      if (mapChrPosGT->find(seqHeader) == mapChrPosGT->end()) {
+        fprintf(stderr, "\nNo variants in vcf for contig \'%s\'. Skipping.\n", seq.name());
+        continue;
+      }
+      //  get chr specific posGTs
+      posGTlist = mapChrPosGT->at(seq.name());
 
-    //  get sequence combinations on each posGT list
-    for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
+      //  get sequence combinations on each posGT list
+      for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
 
-      // initialize variables
-      posGt  = posGTlist->at(posGtIdx);
-      rStart = posGt->_rStart;  // 0-based
-      if (rStart > K_PADD) { rStart -= K_PADD; }
-      else { rStart = 0; }
+        // initialize variables
+        posGt  = posGTlist->at(posGtIdx);
+        rStart = posGt->_rStart;  // 0-based
+        if (rStart > K_PADD) { rStart -= K_PADD; }
+        else { rStart = 0; }
 
-      rEnd   = posGt->_rEnd;             // 1-based
-      if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
-      else { rEnd = seq.length(); }
+        rEnd   = posGt->_rEnd;             // 1-based
+        if (rEnd < seq.length() - K_PADD) {  rEnd += K_PADD;  }
+        else { rEnd = seq.length(); }
 
-      //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
+        //  fprintf(stderr, "\n[ DEBUG ] :: %s : %u - %u\n", seq.name(), rStart, rEnd);
 
-      gts = posGt->_gts;
-      refIdxList.clear();
-      refLenList.clear();
-      path.clear();
-      mapPosHap.clear();
+        gts = posGt->_gts;
+        refIdxList.clear();
+        refLenList.clear();
+        path.clear();
+        mapPosHap.clear();
        
-      //  load mapPosHap
-      //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
-      for (uint32 i = 0; i < gts->size(); i++) {
-         gt = gts->at(i);
-         refIdxList.push_back(gt->_pos - rStart);
-         refLenList.push_back(gt->_refLen);
+        //  load mapPosHap
+        //  fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
+        for (uint32 i = 0; i < gts->size(); i++) {
+          gt = gts->at(i);
+          refIdxList.push_back(gt->_pos - rStart);
+          refLenList.push_back(gt->_refLen);
 
-         //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
-         //  add alleles. alleles.at(0) is always the ref allele
-         mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
-      }
-      //  fprintf(stderr, "\n");
+          //  fprintf(stderr, "gt->_pos = %u ",  gt->_pos);
+          //  add alleles. alleles.at(0) is always the ref allele
+          mapPosHap.insert(pair<int, vector<char*> >(i, *(gt->alleles)));
+        }
+        //  fprintf(stderr, "\n");
       
-  	  refTemplate = new char[(ksize*2+rEnd-rStart)];      
+        refTemplate = new char[(ksize*2+rEnd-rStart)];      
       
-      //  load original sequence from rStart to rEnd
-      if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
-        fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
-        continue;
-      }
-      // DEBUG			fprintf(stderr, "%s\n", refTemplate);
+        //  load original sequence from rStart to rEnd
+        if ( ! seq.copy(refTemplate, rStart, rEnd, true )) {
+          fprintf(stderr, "Invalid region specified: %s : %u - %u\n", seq.name(), rStart, rEnd);
+          continue;
+        }
+        // DEBUG			fprintf(stderr, "%s\n", refTemplate);
 
-      if ( refIdxList.size() > comb ) {
-        fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
-        continue;
-      }
+        if ( refIdxList.size() > comb ) {
+          fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n", seq.name(), rStart, rEnd, gts->size(), comb);
+          continue;
+        }
 
-      varMer* seqMer = new varMer(posGt);
+        varMer* seqMer = new varMer(posGt);
 
-      //  traverse through each gt combination
-      //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
-      traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
-      //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
+        //  traverse through each gt combination
+        //  fprintf(stderr, "[ DEBUG ] :: traverse begin\n");
+        traverse(0, refIdxList, refLenList, mapPosHap, refTemplate, path, seqMer);
+        //  fprintf(stderr, "[ DEBUG ] :: traverse done\n");
 
-      //  score each combination
-      //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
-      seqMer->score(rlookup, alookup, copyKmerDict);
-      //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
+        //  score each combination
+        //  fprintf(stderr, "[ DEBUG ] :: score begin\n");
+        seqMer->score(rlookup, alookup, copyKmerDict);
+        //  fprintf(stderr, "[ DEBUG ] :: score completed\n");
       
-      // store the avgK of the reference to compute the delta
-      //RefAvgK = seqMer->getAvgAbsK(0);
+        // store the avgK of the reference to compute the delta
+        //RefAvgK = seqMer->getAvgAbsK(0);
 
-      //  print to debug
-      for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-        fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
-          varMerId++,
-          seq.name(),
-          rStart,
-          rEnd,
-          seqMer->seqs.at(idx).c_str(), //  seq
-          seqMer->numMs.at(idx),	//  missing
-          seqMer->getMinAbsK(idx),
-          seqMer->getMaxAbsK(idx),
-          seqMer->getMedAbsK(idx),
-          seqMer->getAvgAbsK(idx),
-          //seqMer->getAvgAbsdK(idx, RefAvgK),
-          seqMer->getTotdK(idx)
-        );
+        //  print to debug
+        for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
+          fprintf(oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
+                  varMerId++,
+                  seq.name(),
+                  rStart,
+                  rEnd,
+                  seqMer->seqs.at(idx).c_str(), //  seq
+                  seqMer->numMs.at(idx),	//  missing
+                  seqMer->getMinAbsK(idx),
+                  seqMer->getMaxAbsK(idx),
+                  seqMer->getMedAbsK(idx),
+                  seqMer->getAvgAbsK(idx),
+                  //seqMer->getAvgAbsdK(idx, RefAvgK),
+                  seqMer->getTotdK(idx)
+                  );
 
-        //  new vcf records
-        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
-        if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
-          for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
-            // Ignore the ref-allele (0/0) GTs
-            // print only the non-ref allele variants for fixing
-            int altIdx = seqMer->gtPaths.at(idx).at(i);
-            if (altIdx > 0) {
-              fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-                seq.name(),
-                (gts->at(i)->_pos+1),
-                gts->at(i)->alleles->at(0),
-                gts->at(i)->alleles->at(altIdx)
-              );
+          //  new vcf records
+          //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", seq.name(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+          if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
+            for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+              // Ignore the ref-allele (0/0) GTs
+              // print only the non-ref allele variants for fixing
+              int altIdx = seqMer->gtPaths.at(idx).at(i);
+              if (altIdx > 0) {
+                fprintf(oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+                        seq.name(),
+                        (gts->at(i)->_pos+1),
+                        gts->at(i)->alleles->at(0),
+                        gts->at(i)->alleles->at(altIdx)
+                        );
+              }
+            }
+          }
+          fprintf(oDebug->file(), "\n");
+        }
+
+        // generate vcfs
+        if (bykstar) {
+          // Experimental: output vcf according to k*
+          fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
+        } else {
+          // Filter vcf and print as it was in the original vcf, conservatively
+          vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+          if (records.size() > 0) {
+            for (uint64 i = 0; i < records.size(); i++) {
+              records.at(i)->save(oVcf);
             }
           }
         }
-        fprintf(oDebug->file(), "\n");
-      }
-
-      // generate vcfs
-      if (bykstar) {
-        // Experimental: output vcf according to k*
-        fprintf(oVcf->file(), "%s", seqMer->bestVariant().c_str());
-      } else {
-        // Filter vcf and print as it was in the original vcf, conservatively
-        vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
-        if (records.size() > 0) {
-          for (uint64 i = 0; i < records.size(); i++) {
-            records.at(i)->save(oVcf);
-          }
-        }
-      }
    
-      delete seqMer;
-      delete[] refTemplate;
-    }  
-  }
+        delete seqMer;
+        delete[] refTemplate;
+      }  
+    }
 
   delete oVcf;
   delete oDebug;
@@ -889,7 +889,7 @@ main(int argc, char **argv) {
 
   if (!(pLookupTable == NULL)) {
 
-	     //  Read probabilities lookup table for 1-4 copy kmers.
+    //  Read probabilities lookup table for 1-4 copy kmers.
 
 		int it = 0;
 		int r;
@@ -904,34 +904,34 @@ main(int argc, char **argv) {
 
 		// test file open   
 		if (inputFile) {        
-		string prob;
+      string prob;
 
-		// read the elements in the file into a vector  
-		while ( inputFile >> prob ) {
-			prob.erase(std::remove(prob.begin(), prob.end(), '\n'), prob.end());
-			copyKmerDict.push_back(prob);
-		}
+      // read the elements in the file into a vector  
+      while ( inputFile >> prob ) {
+        prob.erase(std::remove(prob.begin(), prob.end(), '\n'), prob.end());
+        copyKmerDict.push_back(prob);
+      }
 
-		fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, copyKmerDict.size());
+      fprintf(stderr, "-- Loading copy-number lookup table '%s' (size '%lu').\n\n", pLookupTable, copyKmerDict.size());
 
-		while (it < copyKmerDict.size())
-		{
-			string s = copyKmerDict[it];
-			std::string delimiter = ",";
-			r = (int) stod(s.substr(0, s.find(delimiter)));
-			p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
+      while (it < copyKmerDict.size())
+        {
+          string s = copyKmerDict[it];
+          std::string delimiter = ",";
+          r = (int) stod(s.substr(0, s.find(delimiter)));
+          p = (double) stod(s.erase(0, s.find(delimiter) + delimiter.length()));
 			
-			fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it+1, r, p);
+          fprintf(stderr, "Copy-number: %u\t\tReadK: %u\tProbability: %f\n", it+1, r, p);
 
-			it++;
-		}
+          it++;
+        }
 		
-		fprintf(stderr, "\n");
+      fprintf(stderr, "\n");
 	
-		if (!inputFile.eof()) {
-			cout << "Error: couldn't read lookup table!\n";
-			exit (-1);
-		}
+      if (!inputFile.eof()) {
+        cout << "Error: couldn't read lookup table!\n";
+        exit (-1);
+      }
 	  }
 	}
 
@@ -941,7 +941,7 @@ main(int argc, char **argv) {
 
   if (!copyKmerDict.empty()) {
 
-	getreadK = &getreadKprob;
+    getreadK = &getreadKprob;
 	
   }	
 
