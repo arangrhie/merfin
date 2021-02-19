@@ -395,6 +395,11 @@ histKmetric(char               *outName,
 		uint64 * undrHist_pvt = new uint64[histMax];
 		uint64 * overHist_pvt = new uint64[histMax];
 
+    for (uint64 ii = 0; ii < histMax; ii++) {
+      overHist_pvt[ii] = 0;
+      undrHist_pvt[ii] = 0;
+    }
+
 		while (kiter.nextBase()) {
 		  if (kiter.isValid() == true) {
 			kasm++;
@@ -440,7 +445,10 @@ histKmetric(char               *outName,
 					 qv
 					 );
 		}
-	 }
+
+    delete [] undrHist_pvt;  undrHist_pvt = nullptr;
+    delete [] overHist_pvt;  undrHist_pvt = nullptr;
+    }
   }
 
   for (uint64 ii = histMax - 1; ii > 0; ii--) {
