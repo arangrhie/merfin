@@ -31,18 +31,18 @@
 #include <cmath>
 #include <algorithm>
 
+
+//  Add a new path if seq is not known already.
 void
 varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
 
-  vector<string>::iterator it = find (seqs.begin(), seqs.end(), seq);
-  if ( it != seqs.end() ) { return; }
+  if (find(seqs.begin(), seqs.end(), seq) == seqs.end())
+    return;
 
-  // only insert elements if seq is a new sequence
   seqs.push_back(seq);
   gtPaths.push_back(idxPath);      // 0 = ref, 1 = alt1, 2 = alt2, ...
   idxPaths.push_back(varIdxPath);  // 0-base index where the var start is in the seq
   lenPaths.push_back(varLenPath);  // 0-base index where the var start is in the seq
-  return;
 }
 
 void
@@ -132,7 +132,7 @@ varMer::score(merfinGlobal *g) {
     // avgKs.insert(pair<double, int>(getAvgAbsK(ii), ii));      // Automatically sorted by min value
 
     //  fprintf(stderr, "\n");
-  }return;
+  }
 }
 
 /***
