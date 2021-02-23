@@ -1,5 +1,7 @@
 # Generate lookup table
 
+--This is discountined, follow the main readme instead--
+
 The script `lookup.R` is based on [Genomescope 2.0](http://qb.cshl.edu/genomescope/genomescope2.0/).
 
 In addition to the canonical Genomescope output it generates fitted read multiplicity values and probabilities (`lookup_table.txt`).
