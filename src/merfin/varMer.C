@@ -32,18 +32,18 @@
 #include <algorithm>
 
 
-//  Add a new path if seq is not known already.
+//  Add a new path if the variant 'seq' is not known already.
+//
 void
 varMer::addSeqPath(string seq, vector<int> idxPath, vector<uint32> varIdxPath, vector<uint32> varLenPath) {
-
-  if (find(seqs.begin(), seqs.end(), seq) == seqs.end())
-    return;
-
-  seqs.push_back(seq);
-  gtPaths.push_back(idxPath);      // 0 = ref, 1 = alt1, 2 = alt2, ...
-  idxPaths.push_back(varIdxPath);  // 0-base index where the var start is in the seq
-  lenPaths.push_back(varLenPath);  // 0-base index where the var start is in the seq
+  if (find(seqs.begin(), seqs.end(), seq) == seqs.end()) {
+    seqs.push_back(seq);
+    gtPaths.push_back(idxPath);      // 0 = ref, 1 = alt1, 2 = alt2, ...
+    idxPaths.push_back(varIdxPath);  // 0-base index where the var start is in the seq
+    lenPaths.push_back(varLenPath);  // 0-base index where the var start is in the seq
+  }
 }
+
 
 void
 varMer::score(merfinGlobal *g) {
@@ -282,7 +282,7 @@ varMer::getOriginalVCF(int idx) {
   for ( int i = 0; i < gtPaths.at(idx).size(); i++) {
     // Ignore sites where it has to be ref allele (gtPaths.at(idx).at(i) == 0)
     if (gtPaths.at(idx).at(i) > 0)
-      records.push_back(posGt->_gts->at(i)->_record);
+      records.push_back(posGt->_gts[i]->_record);
   }
   return records;
 }
@@ -301,34 +301,34 @@ varMer::getHetRecord(int idx1, int idx2) {
     // alt1 == ref && alt2 == ref: ignore
     if ( altIdx1 + altIdx2 > 0 ) {
       records = records + posGt->_chr + "\t" + 
-        to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-        posGt->_gts->at(i)->_alleles->at(0) + "\t";
+        to_string(posGt->_gts[i]->_pos+1) + "\t.\t" +
+        posGt->_gts[i]->_alleles[0] + "\t";
 
       // alt1 == alt2: 1/1
       // Sometimes, there are cases where path is different but the allele chosen overlaps
       if ( altIdx1 == altIdx2 ) {
-        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) + "\t.\t" +
+        records = records + posGt->_gts[i]->_alleles[altIdx1] + "\t.\t" +
           "PASS\t.\tGT\t1/1\n";
 
 
       }
       // alt1 == ref && alt2 == alt: 0/1
       else if ( altIdx1 == 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts->at(i)->_alleles->at(altIdx2) + "\t.\t" +
+        records = records + posGt->_gts[i]->_alleles[altIdx2] + "\t.\t" +
           "PASS\t.\tGT\t0/1\n";
 
       } 
       // alt1 == alt && alt2 == alt: 1/2
       else if ( altIdx1 > 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) +
+        records = records + posGt->_gts[i]->_alleles[altIdx1] +
           "," +
-          posGt->_gts->at(i)->_alleles->at(altIdx2) +
+          posGt->_gts[i]->_alleles[altIdx2] +
           "\t.\t" +
           "PASS\t.\tGT\t1/2\n";
       }
       // alt1 == alt && alt2 == ref: 1/0
       else if ( altIdx1 > 0 && altIdx2 == 0 ) {
-        records = records + posGt->_gts->at(i)->_alleles->at(altIdx1) + "\t.\t" +
+        records = records + posGt->_gts[i]->_alleles[altIdx1] + "\t.\t" +
           "PASS\t.\tGT\t1/0\n";
       }
     }
@@ -344,9 +344,9 @@ varMer::getHomRecord(int idx) {
     if ( altIdx > 0 ) {
       // altIdx is the reference allele: ignore
       records = records + posGt->_chr + "\t" +
-        to_string(posGt->_gts->at(i)->_pos+1) + "\t.\t" +
-        posGt->_gts->at(i)->_alleles->at(0) + "\t" +
-        posGt->_gts->at(i)->_alleles->at(altIdx) + "\t.\t" +
+        to_string(posGt->_gts[i]->_pos+1) + "\t.\t" +
+        posGt->_gts[i]->_alleles[0] + "\t" +
+        posGt->_gts[i]->_alleles[altIdx] + "\t.\t" +
         "PASS\t.\tGT\t1/1\n";
     }
   }

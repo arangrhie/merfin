@@ -19,161 +19,111 @@
 
 
 
-
-uint64 getIndex(vector<string> v, string K)
-{
-  auto it = find(v.begin(), v.end(), K);
-  int index = distance(v.begin(), it);
-  return index;
-}
-
-
-
 string
-replace(string a, int i, int len, char const * rep) {
-  a.replace(i, len, rep);
-  return a;
-}
-
-
-
-string
-traverse(uint32          idx,
-         vector<uint32>  refIdxList,
-         vector<uint32>  refLenList,
+traverse(uint32                          idx,
+         vector<uint32>                 &refIdxList,   //  This CAN be a reference.
+         vector<uint32>                  refLenList,   //  This CANNOT be a reference.
          map<int, vector<char const*> >  posHaps,
-         string          candidate,
-         vector<int>     path,
-         varMer*         seqMer) {
+         string                          candidate,    //  This cannot be a ref; won't compile
+         vector<int>                    &path,         //  This can be a reference
+         varMer                         *seqMer) {
 
-  if (idx < refIdxList.size()) {
-    // fprintf(stderr, "[ DEBUG ] :: idx = %u | candidate = %s\n", idx, candidate.c_str());
-    vector<char const *> haps = posHaps.at(idx);
-    uint32 refLen = refLenList.at(idx);    // Keep refLen so we revert in case there are > 1 ALTs
+  //fprintf(stderr, "enter   traverse(%2d) - IdxList ", idx);  for (uint32 ii=0; ii<refIdxList.size(); ii++)  fprintf(stderr, " %4u", refIdxList[ii]);  fprintf(stderr, "\n");
 
-    //  for each haplotype sequence, make a combination
-    //  j = 0 is always the REF allele
-    for (int j = 0; j < haps.size(); j++) {
-      path.push_back(j);
-      char const * hap = haps.at(j);
-      string replaced = candidate;
-      int delta = 0;
-      int skipped = 0;
-      bool overlaps = false;
+  assert(idx < refIdxList.size());
 
-      //  Make the replaced ver. Skip if reference allele.
-      if ( j > 0) {
-        refLenList.at(idx) = refLen;  // initialize in case it was modified by a previous j
-        replaced = replace(candidate, refIdxList.at(idx), refLenList.at(idx), hap);
-        //  fprintf(stderr, "[ DEBUG ] :: replaced = %s | refIdxList.at(%u) = %u | refLenList.at(%u) = %u, hap = %s\n", replaced.c_str(), idx, refIdxList.at(idx), idx, refLenList.at(idx), hap);
+  vector<char const *> &haps   = posHaps[idx];
+  uint32                refLen = refLenList[idx];    // Keep refLen so we revert in case there are > 1 ALTs
 
-        //  Apply to the rest of the positions, after skipping overlaps
-        //  refIdx in overlaps should remain as they were as we are using ref allele at these sites anyway
-        //  This has to be done *before* skipping as idx changes.
-        delta = strlen(hap) - refLenList.at(idx);
+  //  for each haplotype sequence, make a combination
+  //  j = 0 is always the REF allele
+  for (int j = 0; j < haps.size(); j++) {
+    path.push_back(j);
 
-        //  Affected base right most index due to this replacement
-        uint32 refAffected = refIdxList.at(idx) + refLenList.at(idx);
+    char const * hap       = haps[j];
+    string       replaced  = candidate;
+    int          skipped   = 0;
+    bool         overlaps  = false;
+    int          delta     = 0;
 
-        //  Change refLen
-        refLenList.at(idx) = strlen(hap);
+    //  Make the replaced ver. Skip if reference allele.
+    if ( j > 0) {
+      refLenList[idx] = refLen;  // initialize in case it was modified by a previous j
 
-        //  If the next variant overlaps, skip it
-        if (idx + 1 < refIdxList.size()) {
-          for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-            // fprintf(stderr, "[ DEBUG ] :: Does %u overlap %u? hap = %d\n", refIdxList.at(i), refAffected, j);
-            if ( refIdxList.at(i) < refAffected ) {
-              //  fprintf(stderr, "[ DEBUG ] :: Yes, %u overlaps %u. skip %u.\n", refIdxList.at(i), refAffected, refIdxList.at(i));
-              overlaps = true;
-              idx++;             //  force skip by jumping the idx
-              path.push_back(0); //  take the ref allele for 'no change'
-              skipped++;
-            } else {
-              //  fprintf(stderr, "[ DEBUG ] :: No, %u DOES NOT overlaps %u. keep %u\n", refIdxList.at(i), refAffected, refIdxList.at(i));
-              break;
-            }
-          }
-        }
+      replaced = candidate;
+      replaced.replace(refIdxList[idx], refLenList[idx], hap);
 
-        //  if this is the end of the list, we are done
-        if ( overlaps && idx == refIdxList.size() - 1) {
-          seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
-          /******* DEBUG *********
-                   fprintf(stderr, "[ DEBUG ] :: We are done with overlapped %u. replaced = %s : hap = %d , skipped = %d\n", refIdxList.at(idx), replaced.c_str(), j, skipped);
-                   fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
-                   for (int hh = 0; hh < path.size(); hh++) {
-                   fprintf(stderr, "\t%d,", path.at(hh));
-                   }
-                   fprintf(stderr, "\n");
-                   fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
-                   for (int hh = 0; hh < refIdxList.size(); hh++) {  fprintf(stderr, "\t%d,", refIdxList.at(hh));  }
-                   fprintf(stderr, "\n");
-                   fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
-                   for (int hh = 0; hh < refLenList.size(); hh++) {  fprintf(stderr, "\t%d,", refLenList.at(hh));  }
-                   fprintf(stderr, "\n\n");
-          ************************/
-          for (int k = 0; k < skipped; k++) {
-            path.pop_back();
-            idx--;
-            //  fprintf(stderr, "[ DEBUG ] :: Pop! idx = %u\n", idx);
-          }
-          path.pop_back();  // pop the current j
-          continue;
-        }
+      //fprintf(stderr, "REPLACE candidate '%s' ->\n", candidate.c_str());
+      //fprintf(stderr, "REPLACE replaced  '%s' by change %u-%u to '%s'\n", replaced.c_str(), refIdxList[idx], refLenList[idx], hap);
 
-        for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-          refIdxList.at(i) += delta;
-          //  fprintf(stderr, "[ DEBUG ] :: Shift refIdxList.at(%u) + %d = %d \n", i, delta, refIdxList.at(i));
-        }
+      //  Apply to the rest of the positions, after skipping overlaps
+      //  refIdx in overlaps should remain as they were as we are using ref allele at these sites anyway
+      //  This has to be done *before* skipping as idx changes.
+      delta = strlen(hap) - refLenList[idx];
 
-      } // Done with what needs to be done with ALT
+      //  Affected base right most index due to this replacement
+      uint32 refAffected = refIdxList[idx] + refLenList[idx];
 
-      //  Traverse
-      replaced = traverse(idx + 1, refIdxList, refLenList, posHaps, replaced, path, seqMer);
+      //  Change refLen
+      refLenList[idx] = strlen(hap);
 
-      //  Only do something when all nodes are visited
-      if (idx == refIdxList.size() - 1) {
+      //  If the next variant overlaps, skip it
+      for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
+        if (refIdxList[i] >= refAffected)
+          break;
+
+        overlaps = true;
+        idx++;             //  force skip by jumping the idx
+        path.push_back(0); //  take the ref allele for 'no change'
+        skipped++;
+      }
+
+      //  if this is the end of the list, we are done
+      if ( overlaps && idx == refIdxList.size() - 1) {
         seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
-        /********* DEBUG **********
-                   fprintf(stderr, "[ DEBUG ] :: We are done with %u. replaced = %s : hap = %d \n", refIdxList.at(idx), replaced.c_str() , j) ;
-                   fprintf(stderr, "[ DEBUG ] ::  path (size=%lu) =", path.size());
-                   for (int hh = 0; hh < path.size(); hh++) {
-                   fprintf(stderr, "\t%d,", path.at(hh));
-                   }
-                   fprintf(stderr, "\n");
-                   fprintf(stderr, "[ DEBUG ] ::  refIdxList (size=%lu) =", refIdxList.size());
-                   for (int hh = 0; hh < refIdxList.size(); hh++) {    fprintf(stderr, "\t%d,", refIdxList.at(hh));    }
-                   fprintf(stderr, "\n");
-                   fprintf(stderr, "[ DEBUG ] ::  refLenList (size=%lu) =", refLenList.size());
-                   for (int hh = 0; hh < refLenList.size(); hh++) {    fprintf(stderr, "\t%d,", refLenList.at(hh));    }
-                   fprintf(stderr, "\n");
-        ***************************/
-      }
 
-      //  fprintf(stderr, "[ DEBUG ] :: idx = %u\n", idx);
-      if ( idx + 1 < refIdxList.size()) {
-        for (uint32 i = idx + 1; i < refIdxList.size(); i++) {
-          refIdxList.at(i) -= delta;
-          //  fprintf(stderr, "[ DEBUG ] :: Shift back refIdxList.at(%u) - %d = %d \n", i, delta, refIdxList.at(i));
-        }
-      }
-
-      if ( skipped > 0 ) {  // put the idx and skipped back
         for (int k = 0; k < skipped; k++) {
-          //  fprintf(stderr, "[ DEBUG ] :: Pop! %d\n", k);
           path.pop_back();
           idx--;
         }
+
+        path.pop_back();  // pop the current j
+        continue;
       }
 
-      path.pop_back();  // pop the current j
-      //  fprintf(stderr, "[ DEBUG ] :: End of idx = %u | j = %d\n\n", idx, j);
+      for (uint32 i = idx + 1; i < refIdxList.size(); i++)
+        refIdxList[i] += delta;
+    } // j>0 - Done with what needs to be done with ALT
+
+    //fprintf(stderr, "goto    traverse(%2d) - IdxList ", idx+1);  for (uint32 ii=0; ii<refIdxList.size(); ii++)  fprintf(stderr, " %4u", refIdxList[ii]);  fprintf(stderr, "\n");
+
+    if (idx+1 < refIdxList.size())
+      replaced = traverse(idx + 1, refIdxList, refLenList, posHaps, replaced, path, seqMer);
+    //else
+    //  fprintf(stderr, "        traverse(%2d) - at the end\n", idx);
+
+    //fprintf(stderr, "back in traverse(%2d) - IdxList ", idx+0);  for (uint32 ii=0; ii<refIdxList.size(); ii++)  fprintf(stderr, " %4u", refIdxList[ii]);  fprintf(stderr, "\n");
+
+    //  Only do something when all nodes are visited
+    if (idx == refIdxList.size() - 1)
+      seqMer->addSeqPath(replaced, path, refIdxList, refLenList);
+
+
+    for (uint32 i = idx + 1; i < refIdxList.size(); i++)
+      refIdxList[i] -= delta;
+
+    for (int k = 0; k < skipped; k++) {
+      path.pop_back();
+      idx--;
     }
+
+    path.pop_back();  // pop the current j
   }
-  idx--;
-  //fprintf(stderr, "traverse() returns candidate idx %d '%s'\n", idx, candidate.c_str());
-  return candidate;
+
+  //fprintf(stderr, "        traverse(%2d) - finished\n", idx);
+  return(candidate);
 }
+
 
 
 
@@ -211,7 +161,7 @@ processVariants(void *G, void *T, void *S) {
 
   //  Get chromosome specific posGTs, and iterate over.
 
-  vector<posGT *> *posGTlist = mapChrPosGT.at(s->seq.ident());
+  vector<posGT *> *posGTlist = mapChrPosGT[s->seq.ident()];
 
   vector<uint32>           refIdxList;
   vector<uint32>           refLenList;
@@ -222,7 +172,7 @@ processVariants(void *G, void *T, void *S) {
     posGT               *posGt  = posGTlist->at(posGtIdx);
     uint32               rStart = posGt->_rStart;   //  0-based!
     uint32               rEnd   = posGt->_rEnd;     //  1-based!
-    vector<gtAllele *>  *gts    = posGt->_gts;
+    vector<gtAllele *>  &gts    = posGt->_gts;
 
     uint32               K_PADD = kmer::merSize() - 1;
 
@@ -241,22 +191,22 @@ processVariants(void *G, void *T, void *S) {
 
     //fprintf(stderr, "\n");
     //fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", s->seq.ident(), rStart, rEnd);
-    //fprintf(stderr, "[ DEBUG ] :: gts->size = %lu | ", gts->size());
-    //for (uint32 i = 0; i < gts->size(); i++)
-    //  fprintf(stderr, "gt->_pos = %u ",  gts->at(i)->_pos);
+    //fprintf(stderr, "[ DEBUG ] :: gts.size = %lu | ", gts.size());
+    //for (uint32 i = 0; i < gts.size(); i++)
+    //  fprintf(stderr, "gt->_pos = %u ",  gts[i]->_pos);
     //fprintf(stderr, "\n");
 
     //  Load mapPosHap
 
-    for (uint32 i = 0; i < gts->size(); i++) {
-      gtAllele *gt = gts->at(i);
+    for (uint32 i = 0; i < gts.size(); i++) {
+      gtAllele *gt = gts[i];
 
       refIdxList.push_back(gt->_pos - rStart);
       refLenList.push_back(gt->_refLen);
 
-      //  add alleles. alleles.at(0) is always the ref allele
+      //  add alleles. alleles[0] is always the ref allele
 #warning is this copying the whole vector?
-      mapPosHap[i] = *(gt->_alleles);
+      mapPosHap[i] = gt->_alleles;
     }
 
     //  Load original sequence from rStart to rEnd.
@@ -270,7 +220,7 @@ processVariants(void *G, void *T, void *S) {
 
     if (refIdxList.size() > g->comb) {
       fprintf(stderr, "PANIC : Combination %s:%u-%u has too many variants ( found %lu > %u ) to evaluate. Consider filtering the vcf upfront. Skipping...\n",
-              s->seq.ident(), rStart, rEnd, gts->size(), g->comb);
+              s->seq.ident(), rStart, rEnd, gts.size(), g->comb);
       continue;
     }
 
@@ -301,8 +251,8 @@ processVariants(void *G, void *T, void *S) {
               s->seq.ident(),
               rStart,
               rEnd,
-              seqMer->seqs.at(idx).c_str(),  //  seq
-              seqMer->numMs.at(idx),         //  missing
+              seqMer->seqs[idx].c_str(),  //  seq
+              seqMer->numMs[idx],         //  missing
               seqMer->getMinAbsK(idx),
               seqMer->getMaxAbsK(idx),
               seqMer->getMedAbsK(idx),
@@ -311,19 +261,19 @@ processVariants(void *G, void *T, void *S) {
               seqMer->getTotdK(idx));
 
       //  new vcf records
-      //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths.at(idx).size() %d\n", s->seq.ident(), rStart, rEnd, seqMer->gtPaths.at(idx).size());
+      //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths[idx].size() %d\n", s->seq.ident(), rStart, rEnd, seqMer->gtPaths[idx].size());
 
-      if  ( seqMer->gtPaths.at(idx).size() > 0 ) {
-        for (uint64 i = 0; i < seqMer->gtPaths.at(idx).size(); i++) {
+      if  ( seqMer->gtPaths[idx].size() > 0 ) {
+        for (uint64 i = 0; i < seqMer->gtPaths[idx].size(); i++) {
           // Ignore the ref-allele (0/0) GTs
           // print only the non-ref allele variants for fixing
-          int altIdx = seqMer->gtPaths.at(idx).at(i);
+          int altIdx = seqMer->gtPaths[idx][i];
           if (altIdx > 0) {
             fprintf(t->oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
                     s->seq.ident(),
-                    (gts->at(i)->_pos+1),
-                    gts->at(i)->_alleles->at(0),
-                    gts->at(i)->_alleles->at(altIdx)
+                    gts[i]->_pos+1,
+                    gts[i]->_alleles[0],
+                    gts[i]->_alleles[altIdx]
                     );
           }
         }
@@ -344,7 +294,7 @@ processVariants(void *G, void *T, void *S) {
       vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
 
       for (uint64 i = 0; i < records.size(); i++)
-        records.at(i)->save(t->oVcf);
+        records[i]->save(t->oVcf);
     }
 
     //  Cleanup.

@@ -20,36 +20,15 @@
 #include <vector>
 
 
-void
-gtAllele::parseGT(char const *gt) {
-
-  //  Is "." or ref allele?  Do nothing.
-  if (strcmp(gt, ".") == 0) {
-    _record->invalidate();
-    return;
-  }
-
-  //  Add if hap isn't already there (and if it's a valid index).
-  //  gt is 1-based while alts[] is 0-based.
-
-  int32   altIdx = strtoint32(gt);
-
-  if (altIdx > 0) {
-    char   *hap = _record->_arr_alts[altIdx - 1];
-
-    if (find(_alleles->begin(), _alleles->end(), hap) == _alleles->end())
-      _alleles->push_back(hap);
-  }
-}
-
-
-
 gtAllele::gtAllele(vcfRecord *r) {
+
+  //  Initialize the easy stuff.
 
   _record = r;
   _pos    = _record->get_pos() - 1;
+  _refLen = strlen(_record->get_ref());
 
-  //  fprintf(stderr, "[ DEBUG ] :: (*record->_arr_samples)[0] = %s\n", (*record->_arr_samples)[0]);
+  //  
 
   if ((strncmp(_record->_arr_samples[0], "./.", 3) == 0) ||
       (strncmp(_record->_arr_samples[0], "0/0", 3) == 0)) {
@@ -60,18 +39,44 @@ gtAllele::gtAllele(vcfRecord *r) {
 
   splitToWords GT(_record->_arr_samples[0], splitLetter, '/');
 
-  _alleles = new vector<char const *>;
-  _alleles->push_back(_record->get_ref());   //  make the alleles.at(0) always be the ref allele
+  _alleles.push_back(_record->get_ref());   //  _alleles[0] is ALWAYS the reference allele.
 
-  _refLen    = strlen(_record->get_ref());
+  //  Add alternate alleles to the list, as long as they aren't already there.
 
-  parseGT(GT[0]);  //, record->get_ref(), record->_arr_alts, alleles, record->isValid);
-  parseGT(GT[1]);  //, record->get_ref(), record->_arr_alts, alleles, record->isValid);
+  for (uint32 ii=0; ii<GT.numWords(); ii++) {
+    int32   altIdx = strtoint32(GT[ii]);
 
-  //fprintf(stderr, "[ DEBUG ] :: gtAlleles at pos=%u are %lu :", _pos, alleles->size());
-  //for ( int i = 0; i < alleles->size(); i++)
-  //  fprintf(stderr, " %d = %s", i, alleles->at(i));
-  //fprintf(stderr, "\n");
+    if (altIdx <= 0) {        //  This handles the case of gt being the empty string,
+      _record->invalidate();  //  gt being "0" (or "00", etc), or gt being non-numeric,
+      continue;               //  (and even invalid stuff like negative numbers).
+    }
+
+    //  Add the alternate allele for this variant to the list of alleles if it
+    //  isn't already there.  Since the alleles come from the same source, we
+    //  can just compare pointers.
+    //
+    //  Well, no, we cannot just compare pointers, since the reference allele will
+    //  have a guaranteed different address to any alternate allele.
+
+    char const *hap = _record->_arr_alts[altIdx - 1];
+
+    //  Search for pointer-to-pointer matches between any alternate alleles.
+    if (hap != nullptr) {
+      for (uint32 ii=0; ii<_alleles.size(); ii++)
+        if (_alleles[ii] == hap)
+          hap = nullptr;
+    }
+
+    //  If not found, search for string matches between the reference and alternate.
+
+    if (hap != nullptr) {
+      if (strcmp(_alleles[0], hap) == 0)
+        hap = nullptr;
+    }
+
+    if (hap != nullptr)           //  If it's null, we found it
+      _alleles.push_back(hap);   //  on the list already.
+  }
 }
 
 
@@ -102,30 +107,26 @@ vcfFile::loadFile(char *inName) {
       continue;
     }
 
-    //  Convert this line into a vcfRecord.  If it's not valid, destroy the
-    //  record and get another line.
+    //  Attempt to convert this line into a vcfRecord.  If it fails, delete the
+    //  incomplete record; otherwise save it onto the master list of records
+    //  and add a posGT to the per-chromosome list.
 
-    vcfRecord *record = new vcfRecord(L);
+    vcfRecord *record = new vcfRecord;
 
-    if (record->isValid() == false) {
+    if (record->load(L) == false) {
       excluded++;
       delete record;
-      continue;
     }
+    else {
+      _records.push_back(record);
 
-    //  A good record!  Save it and make a new vector of posGT's if this is
-    //  the first time we've seen the CHR.
+      string  chr = record->get_chr();
 
-    _records.push_back(record);
+      if (_mapChrPosGT.count(chr) == 0)
+        _mapChrPosGT[chr] = new vector<posGT *>;
 
-    string  chr = record->get_chr();
-
-    if (_mapChrPosGT.count(chr) == 0)
-      _mapChrPosGT[chr] = new vector<posGT *>;
-
-    //  Add a new posGT for this record.
-
-    _mapChrPosGT[chr]->push_back(new posGT(record));
+      _mapChrPosGT[chr]->push_back(new posGT(record));
+    }
   }
 
   delete [] L;
@@ -143,98 +144,94 @@ vcfFile::loadFile(char *inName) {
 
 
 
+//  The goal is to merge posGT elements in the list that are within 2(k-1) of each other.
+//
 bool
 vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
 
-  uint32 K_OFFSET  =  ksize--;	// ksize - 1
+  uint32 K_OFFSET =  2 * ksize;
 
     //  for each chromosome - posGTlist
   for (auto it = _mapChrPosGT.begin(); it != _mapChrPosGT.end(); it++ ) {
     string          chr       =  it->first;
-    vector<posGT*> &posGTlist = *it->second;   //  A reference to the vector
+    vector<posGT*> &inlist    = *it->second;         //  A reference to the vector
+    vector<posGT*> *otlist    = new vector<posGT*>;  //  A new list with the merged posGT's
+
+    uint32          removed   = 0;
+    uint32          split     = 0;
+    uint32          merged    = 0;
 
     //  Nothing to do if there is only one thing on the list!
-    if (posGTlist.size() == 1)
-      continue;
+    //if (inlist.size() == 1)
+    //  continue;
 
-    //  Initialize variables
-    int removed   = 0;
-    int posGtSizeB = posGTlist.size();	// Before
-    int posGtSizeA = posGTlist.size();	// After
+    //  Sort the original list by begin position.
+    auto byBeginCoord = [](posGT * const &A, posGT * const &B) { return(A->_rStart < B->_rStart); };
 
-    // fprintf(stderr, "[ DEBUG ] :: Merge variants in %s ... \n", chr.c_str());
+    sort(inlist.begin(), inlist.end(), byBeginCoord);
 
-    //  Get first start and end
-    uint32 start     = posGTlist.at(0)->_rStart;
-    uint32 end       = posGTlist.at(0)->_rEnd;
+    //  Push the first posGT onto the output list.
 
-    //  for each posGT,
-    //  keep order when iterating,
-    //  begin from [1] not [0]
-    for (int ii=1; ii<posGtSizeA;) {
-      uint32 iStart = posGTlist[ii]->_rStart;
-      uint32 iEnd   = posGTlist[ii]->_rEnd;
+    otlist->push_back(inlist[0]);
 
-      //  ignore gts with 0 alleles (0/0 or ./.)
-      vector<gtAllele*> *gts = posGTlist[ii]->_gts;
-      if (gts->at(0)->_alleles->size() == 0 ) {
-        // fprintf(stderr, "[ DEBUG ] :: erase posGTlist.(%d) \n", ii);
-        posGTlist.erase(posGTlist.begin() + ii);
-        posGtSizeA--;
+    //  Iterate over all the other input posGT's.
+
+    for (uint32 ii=1; ii < inlist.size(); ii++) {
+
+      //  Silently skip input any posGT that has no alleles.
+      if (inlist[ii]->_gts.size() == 0) {
         removed++;
         continue;
       }
 
-      //  fprintf(stderr, "[ DEBUG ] :: start=%u, end=%u, iStart=%u, iEnd=%u\n", start, end, iStart, iEnd);
+      //  We must be sorted.
+      assert(otlist->back()->_rStart <= inlist[ii]->_rStart);
 
-      //  Is ii overlapping with ii-1 th posGT ?
-      //  Move - K_OFFSET from left to right (or vice versa)
-      //  to prevent overflow
-      if (
-          (
-           ( iStart < end + (2 * K_OFFSET) && start < iStart)
-           || // In case not sorted
-           ( iEnd + (2 * K_OFFSET) > start && iEnd < end )
-           )
-          && 
-          (
-           (posGTlist.at(ii-1)->size() < comb)
-           ||
-           nosplit
-           )
-          ) {
+      //  If this input record does not overlap with the most recent output record,
+      //  or the most recent output record has more than 'comb' items and splitting is allowed,
+      //  make a new output.
 
-        //  Add gts to previous posGT
-        //  fprintf(stderr, "[ DEBUG ] :: Num. alleles = %u. Allele at %u = %s\n", gts->at(0)->alleles->size(), 0, gts->at(0)->alleles->at(0));
-        posGTlist.at(ii-1)->addGtAllele(gts->at(0));
-        // fprintf(stderr, "[ DEBUG ] :: Adding allele at %u to %u\n", gts->at(0)->_pos, posGTlist.at(ii-1)->_gts->at(0)->_pos);
-     
-        //  fprintf(stderr, "[ DEBUG ] :: Total gts at pos %u: %u. Total gts = %u\n", posGTlist.at(ii-1)->_gts->at(0)->_pos, posGTlist.at(ii-1)->_gts->size(), posGTlist.size());
-        //  Remove posGTlist[ii]
-        // fprintf(stderr, "[ DEBUG ] :: Remove allele at %u\n", ii);
-        posGTlist.erase(posGTlist.begin() + ii);
-        //  fprintf(stderr, "[ DEBUG ] :: Now allele at %u is %u. Total gts = %u\n", ii, posGTlist[ii]->_gts->at(0)->_pos, posGTlist.size());
-        posGtSizeA--;
-        removed++;
+      bool  overlapping = (inlist[ii]->_rStart < otlist->back()->_rEnd + K_OFFSET);
+      bool  toomany     = (otlist->back()->_gts.size() >= comb);
 
-        //  Extend end
-        if ( iEnd > end )
-          end = iEnd;
-
-      } else if (posGTlist.at(ii-1)->size() >= comb && !nosplit) {
-      
-        fprintf(stderr, "---%s : More than %u variants in the combination when variant at position %u is included. Splitting. Consider filtering the vcf upfront.\n", chr.c_str(), posGTlist.at(ii-1)->size(), posGTlist[ii]->_rStart);
-        start = posGTlist[ii]->_rStart;
-        end   = posGTlist[ii]->_rEnd;
-        ii++;
-      
-      } else {
-        start = posGTlist[ii]->_rStart;
-        end   = posGTlist[ii]->_rEnd;
-        ii++;
+      if (overlapping == false) {     //  Boring, just no overlap between variants.
+        //fprintf(stderr, "%s : No overlap to previous variant at position %u-%u; make new cluster starting at position %u-%u.\n",
+        //        chr.c_str(),
+        //        otlist->back()->_rStart, otlist->back()->_rEnd,
+        //        inlist[ii]->_rStart, inlist[ii]->_rEnd);
+        otlist->push_back(inlist[ii]);
+        continue;
       }
+
+      if ((toomany == true) &&        //  Exciting!  A big pile of variants at this position,
+          (nosplit == false)) {       //  and we're allowed to split large clusters.
+        //fprintf(stderr, "%s : More than %u variants at position %u-%u; split variants starting at position %u-%u into a new set.\n",
+        //        chr.c_str(),
+        //        comb,
+        //        otlist->back()->_rStart, otlist->back()->_rEnd,
+        //        inlist[ii]->_rStart, inlist[ii]->_rEnd);
+        otlist->push_back(inlist[ii]);
+        split++;
+        continue;
+      }
+
+      //  Otherwise, we're overlapping AND allowed to merge, so do that.
+
+      //fprintf(stderr, "%s : Merge variant at %u into cluster at %u-%u.\n",
+      //        chr.c_str(),
+      //        inlist[ii]->_rStart,
+      //        otlist->back()->_rStart, otlist->back()->_rEnd);
+      otlist->back()->addGtAllele(inlist[ii]->_gts[0]);
+      merged++;
     }
-    fprintf(stderr, "%s : Reduced %d variants down to %d combinations for evaluation (merged %d)\n", chr.c_str(), posGtSizeB, posGtSizeA, removed);
+
+    fprintf(stderr, "%s : Reduced %lu variants down to %lu combinations for evaluation:\n", chr.c_str(), inlist.size(), otlist->size());
+    fprintf(stderr, "%s :   Removed %u empty alleles.\n", chr.c_str(), removed);
+    fprintf(stderr, "%s :   Split   %u complicated combinations.\n", chr.c_str(), split);
+    fprintf(stderr, "%s :   Merged  %u variants into combinations.\n", chr.c_str(), merged);
+
+    delete _mapChrPosGT[chr];
+    _mapChrPosGT[chr] = otlist;
   }
 
   return(true);
