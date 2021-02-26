@@ -64,6 +64,7 @@ void outputHistogram (void *G, void *S);
 void outputDump      (void *G, void *S);
 void outputVariants  (void *G, void *S);
 
+void computeCompleteness(merfinGlobal *G);
 
 
 
@@ -133,6 +134,9 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-vmer") == 0) {
       G->reportType = OP_VAR_MER;
 
+    } else if (strcmp(argv[arg], "-completeness") == 0) {
+      G->reportType = OP_COMPL;
+
     } else if (strcmp(argv[arg], "-comb") == 0) {
       G->comb = strtouint32(argv[++arg]);
 
@@ -143,14 +147,26 @@ main(int32 argc, char **argv) {
     }
   }
 
-  if (G->seqName == nullptr)     err.push_back("No input sequences (-sequence) supplied.\n");
+  //  Check inputs are present for the various modes.
+
+  if ((G->reportType == OP_HIST) ||
+      (G->reportType == OP_DUMP) ||
+      (G->reportType == OP_VAR_MER)) {
+    if (G->seqName == nullptr)   err.push_back("No input sequences (-sequence) supplied.\n");
+    if (G->outName == nullptr)   err.push_back("No output (-output) supplied.\n");
+  }
+
+  if  (G->reportType == OP_VAR_MER) {
+    if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -vmer reports.\n");
+  }
+
+  if  (G->reportType == OP_NONE) {
+    err.push_back("No report type (-hist, -dump, -vmer, -completeness) supplied.\n");
+  }
+
   if (G->seqDBname == nullptr)   err.push_back("No sequence meryl database (-seqmers) supplied.\n");
   if (G->readDBname == nullptr)  err.push_back("No read meryl database (-readmers) supplied.\n");
   if (G->peak == 0)              err.push_back("Peak=0 or no haploid peak (-peak) supplied.\n");
-  if (G->outName == nullptr)     err.push_back("No output (-output) supplied.\n");
-
-  if ((G->reportType == OP_VAR_MER) &&
-      (G->vcfName == nullptr))   err.push_back("No variant call input (-vcf) supplied; mandatory for -vmer reports.\n");
 
   //  check reportType OP_VAR_MER has vcfName
 
@@ -276,31 +292,36 @@ main(int32 argc, char **argv) {
   if (G->reportType == OP_VAR_MER) {
     fprintf(stderr, "-- Generate variant mers and score them.\n");
     ss = new sweatShop(loadSequence, processVariants, outputVariants);
-    //varMers(seqName, seqFile, inVcf, readLookup, asmLookup, outName, comb, nosplit, copyKmerDict, bykstar, threads);
   }
 
+  if (G->reportType == OP_COMPL) {
+    fprintf(stderr, "-- Compute completeness.\n");
+    computeCompleteness(G);
+  }
 
   //  Run the compute.
 
-  ss->setNumberOfWorkers(G->threads);
+  if (ss) {
+    ss->setNumberOfWorkers(G->threads);
 
-  for (uint32 tt=0; tt<G->threads; tt++) {
-    td[tt].threadID = tt;
-    ss->setThreadData(tt, td + tt);
-  }
+    for (uint32 tt=0; tt<G->threads; tt++) {
+      td[tt].threadID = tt;
+      ss->setThreadData(tt, td + tt);
+    }
 
-  ss->setLoaderBatchSize(1);
-  ss->setLoaderQueueSize(G->threads * 2);
-  ss->setWorkerBatchSize(1);
-  ss->setWriterQueueSize(G->threads * 2);
+    ss->setLoaderBatchSize(1);
+    ss->setLoaderQueueSize(G->threads * 2);
+    ss->setWorkerBatchSize(1);
+    ss->setWriterQueueSize(G->threads * 2);
 
-  if (ss)
     ss->run(G, false);
+  }
 
   //  Call all the report methods.  If there are no results for some report,
   //  the report isn't emitted.
 
   G->reportHistogram();
+  G->reportCompleteness();
 
   //  Cleanup and quit.
   delete [] td;

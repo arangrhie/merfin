@@ -4,6 +4,7 @@ SOURCES  := merfin.C \
             merfin-histogram.C \
             merfin-dump.C \
             merfin-variants.C \
+            merfin-completeness.C \
             vcf.C \
             varMer.C
 

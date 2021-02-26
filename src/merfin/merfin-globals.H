@@ -31,6 +31,7 @@
 #define OP_HIST       1
 #define OP_DUMP       2
 #define OP_VAR_MER    3
+#define OP_COMPL      4
 
 
 
@@ -182,9 +183,15 @@ public:
   uint64                 *histOver     = nullptr;
 
   void                    reportHistogram(void);
+  void                    reportCompleteness(void);
 
   //  Output data for variant mode.
 public:
+
+  //  Output data for completeness
+public:
+  double                  complTotal[64] = {0.0};
+  double                  complUndrC[64] = {0.0};
 
 
   //  Input data.

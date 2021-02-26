@@ -114,7 +114,10 @@ merfinGlobal::getK(kmer     fmer,
 void
 merfinGlobal::load_Kmers(void) {
 
-  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
+  if (reportType == OP_COMPL) {
+    fprintf(stderr, "-- Not loading kmers; not necessary for -completeness mode.\n");
+    return;
+  }
 
   merylFileReader*  readDB     = new merylFileReader(readDBname);
   merylFileReader*  asmDB      = new merylFileReader(seqDBname);
@@ -153,9 +156,10 @@ merfinGlobal::load_Kmers(void) {
     exit(1);
   }
 
-  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
-
+  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
   readLookup->load(readDB, maxMemory, useMin, useOpt, minV, maxV);
+
+  fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
   asmLookup-> load(asmDB,  maxMemory, useMin, useOpt);
 
   delete readDB;    //  Not needed anymore.
@@ -168,6 +172,10 @@ merfinGlobal::load_Kmers(void) {
 void
 merfinGlobal::open_Inputs(void) {
 
+  if (reportType == OP_COMPL) {
+    return;
+  }
+
   //  Open input sequences.
 
   if (seqName != nullptr) {
@@ -175,17 +183,13 @@ merfinGlobal::open_Inputs(void) {
     seqFile = new dnaSeqFile(seqName);
   }
 
-  //  Open VCF input.  This is only needed for reportType OP_VAR_MER,
-  //  but we don't check anything here.
+  //  Open VCF input.  This is only needed for reportType OP_VAR_MER.
+  //  main() checks that we have a vcfName.
 
-  if (vcfName != nullptr) {
+  if (reportType == OP_VAR_MER) {
     fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
     inVcf = new vcfFile(vcfName);
-  }
 
-  //  Process the vcf.  Only needded for -vmer mode.
-
-  if (inVcf) {
     fprintf(stderr, "Merge variants within %u-mer bases, splitting combinations greater than %u.\n",
             kmer::merSize(), comb);
     inVcf->mergeChrPosGT(kmer::merSize(), comb, nosplit);
