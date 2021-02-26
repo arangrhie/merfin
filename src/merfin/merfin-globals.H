@@ -142,11 +142,12 @@ public:
   void      load_Kmers(void);
   void      open_Inputs(void);
 
+  void      getK(kmvalu   seqValue,
+                 kmvalu   asmValue,
+                 double  &readK, double  &asmK, double  &prob);
   void      getK(kmer     fmer,
                  kmer     rmer,
-                 double  &readK,
-                 double  &asmK,
-                 double  &prob);
+                 double  &readK, double  &asmK, double  &prob);
   double    getKmetric(double readK, double asmK);
 
   //  Parameters for histogram mode.

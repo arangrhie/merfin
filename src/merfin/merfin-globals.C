@@ -64,43 +64,49 @@ merfinGlobal::load_Kmetric(void) {
 
 
 void
+merfinGlobal::getK(kmvalu   seqValue,   //  Value of the kmer in the read database
+                   kmvalu   asmValue,   //  Value of the kmer in the assembly database
+                   double  &readK,
+                   double  &asmK,
+                   double  &prob) {
+
+  //  Compute the default readK and prob based on the lookup values.
+  //    kmer_value / peak == 0  ->  readK = 0
+  //    kmer_value / peak  < 1  ->  readK = 1
+  //    else                        readK = round(kmer_value / peak)
+  //
+  //  asmK is always just the asmValue.
+
+  readK = 0.0;
+  asmK  = asmValue;
+  prob  = 1.0;
+
+  if      (seqValue == 0)
+    readK = 0;
+  else if (seqValue < peak)
+    readK = 1;
+  else
+    readK = round(seqValue / peak);
+
+  //  If there are pre-loaded probabilities, use those.
+
+  if ((seqValue > 0) &&
+      (seqValue <= copyKmerK.size())) {
+    readK = copyKmerK[seqValue-1];
+    prob  = copyKmerP[seqValue-1];
+  }
+}
+
+
+void
 merfinGlobal::getK(kmer     fmer,
                    kmer     rmer,
                    double  &readK,
                    double  &asmK,
                    double  &prob) {
-
-  //  A first lookup to get the read values.
-
-  uint64 value = readLookup->value(fmer) + readLookup->value(rmer);
-
-  //  Compute the default readK and prob based on the lookup values.
-  //
-  //    kmer_value / peak == 0  ->  readK = 0
-  //    kmer_value / peak  < 1  ->  readK = 1
-  //    else                        readK = round(kmer_value / peak)
-
-  readK = 0.0;
-  prob  = 1.0;
-
-  if      (value == 0)
-    readK = 0;
-  else if (value < peak)
-    readK = 1;
-  else
-    readK = round(value / peak);
-
-  //  But if there are pre-loaded probabilities, use those.
-
-  if ((value > 0) &&
-      (value <= copyKmerK.size())) {
-    readK = copyKmerK[value-1];
-    prob  = copyKmerP[value-1];
-  }
-
-  //  Another lookup to get the assembly values.
-
-  asmK = asmLookup->value(fmer) + asmLookup->value(rmer);
+  getK(readLookup->value(fmer) + readLookup->value(rmer),
+       asmLookup->value(fmer)  + asmLookup->value(rmer),
+       readK, asmK, prob);
 }
 
 
