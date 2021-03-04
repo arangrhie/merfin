@@ -149,14 +149,8 @@ processVariants(void *G, void *T, void *S) {
   if (t->oDebug == nullptr) {
     char  name[FILENAME_MAX+1];
 
-    snprintf(name, FILENAME_MAX, "%s.%02d.debug", g->outName, t->threadID);
+    snprintf(name, FILENAME_MAX, "%s.%02d.debug.gz", g->outName, t->threadID);
     t->oDebug = new compressedFileWriter(name);
-
-    snprintf(name, FILENAME_MAX, "%s.%02d.vcf", g->outName, t->threadID);
-    t->oVcf = new compressedFileWriter(name);
-
-    for (string header : g->inVcf->getHeaders())
-      fprintf(t->oVcf->file(), "%s\n", header.c_str());
   }
 
   //  Get chromosome specific posGTs, and iterate over.
@@ -286,7 +280,8 @@ processVariants(void *G, void *T, void *S) {
 
     // Experimental: output vcf according to k*
     if (g->bykstar) {
-      fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
+      //fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
+      s->result += seqMer->bestVariant();
     }
 
     // Filter vcf and print as it was in the original vcf, conservatively
@@ -294,7 +289,8 @@ processVariants(void *G, void *T, void *S) {
       vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
 
       for (uint64 i = 0; i < records.size(); i++)
-        records[i]->save(t->oVcf);
+        //records[i]->save(t->oVcf);
+        s->result += records[i]->save();
     }
 
     //  Cleanup.
@@ -329,9 +325,11 @@ outputVariants(void *G, void *S) {
       fprintf(g->oVCF->file(), "%s\n", header.c_str());
   }
 
-  //
+  //  Dump the output string to the output file.  Flush it just
+  //  so we can get a reliable record of where we are.
 
-
+  fputs(s->result.c_str(), g->oVCF->file());
+  fflush(g->oVCF->file());
 
   //  Bye.
 

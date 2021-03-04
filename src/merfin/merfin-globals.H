@@ -82,6 +82,7 @@ public:
 
   //  Variant results.
 
+  string     result;
   //uint64     vmersLen    = 0;
   //uint64     vmersMax    = 0;
   //char      *vmers       = nullptr;
@@ -102,7 +103,6 @@ public:
   }
   ~merfinThrData() {
     delete oDebug;
-    delete oVcf;
   }
 
   //  Our ident.
@@ -113,8 +113,6 @@ public:
 
   compressedFileWriter   *oDebug   = nullptr;
   uint64                  varMerId = 0;
-
-  compressedFileWriter   *oVcf     = nullptr;
 };
 
 
@@ -132,8 +130,15 @@ public:
 class merfinGlobal {
 public:
   ~merfinGlobal() {
+    delete dumpOutFile;
+    delete oVCF;
+
+    delete [] histUndr;
+    delete [] histOver;
+
     delete seqFile;
     delete inVcf;
+
     delete asmLookup;
     delete readLookup;
   }
