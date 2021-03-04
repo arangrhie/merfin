@@ -113,7 +113,7 @@ computeCompleteness(merfinGlobal *G) {
       G->complTotal[ii] += readK;
 
       if (readK > asmK)
-        G->complUndrC[ii] += (readK - asmK) * prob;
+        G->complUndrC[ii] += readK - asmK;
     }
 
     fprintf(stderr, "thread %2u total %12.2f underc %15.5f completeness %0.8f\n",
