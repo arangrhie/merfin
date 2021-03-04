@@ -226,9 +226,10 @@ vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
     }
 
     fprintf(stderr, "%s : Reduced %lu variants down to %lu combinations for evaluation:\n", chr.c_str(), inlist.size(), otlist->size());
-    fprintf(stderr, "%s :   Removed %u empty alleles.\n", chr.c_str(), removed);
-    fprintf(stderr, "%s :   Split   %u complicated combinations.\n", chr.c_str(), split);
-    fprintf(stderr, "%s :   Merged  %u variants into combinations.\n", chr.c_str(), merged);
+
+    if (removed > 0)   fprintf(stderr, "%s :   Removed %u empty alleles.\n", chr.c_str(), removed);
+    if (split   > 0)   fprintf(stderr, "%s :   Split   %u complicated combinations.\n", chr.c_str(), split);
+    if (merged  > 0)   fprintf(stderr, "%s :   Merged  %u variants into combinations.\n", chr.c_str(), merged);
 
     delete _mapChrPosGT[chr];
     _mapChrPosGT[chr] = otlist;
