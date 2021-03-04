@@ -312,9 +312,11 @@ main(int32 argc, char **argv) {
     ss->setLoaderBatchSize(1);
     ss->setLoaderQueueSize(G->threads * 2);
     ss->setWorkerBatchSize(1);
-    ss->setWriterQueueSize(G->threads * 2);
+    ss->setWriterQueueSize(16384);
 
-    ss->run(G, false);
+    ss->setInOrderOutput(false);
+
+    ss->run(G, true);
   }
 
   //  Call all the report methods.  If there are no results for some report,
