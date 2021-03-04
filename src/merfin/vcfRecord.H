@@ -80,6 +80,25 @@ public:
             _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
   }
 
+  string  save(void) {
+    uint32 len = (strlen(_chr) +
+                  12 +
+                  strlen(_id) +
+                  strlen(_ref) +
+                  strlen(_alts) +
+                  12 +
+                  strlen(_filter) +
+                  strlen(_info) +
+                  strlen(_formats) +
+                  strlen(_samples));
+    char  line[len + 128];
+
+    sprintf(line, "%s\t%d\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\n",
+            _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
+
+    return(string(line));
+  }
+
   //  To enfore that this is a read-only object, there are only accessors
   //  that don't allow modifications.
   //
