@@ -1,14 +1,12 @@
 
 /******************************************************************************
  *
- *  This file is part of canu, a software program that assembles whole-genome
- *  sequencing reads into contigs.
+ *  This is a k-mer based variant evaluation tool for polishing assemblies.
  *
  *  This software is based on:
- *    'Celera Assembler' r4587 (http://wgs-assembler.sourceforge.net)
- *    the 'kmer package' r1994 (http://kmer.sourceforge.net)
+ *    'Meryl'                  (https://github.com/marbl/meryl)
  *
- *  Except as indicated otherwise, this is a 'United States Government Work',
+ *  This is a 'United States Government Work',
  *  and is released in the public domain.
  *
  *  File 'README.licenses' in the root directory of this distribution
@@ -22,173 +20,107 @@
 #include "types.H"
 #include "kmers.H"
 
+#include "strings.H"
+
 #include <string>
 #include <algorithm>
 #include <map>
 using namespace std;
 
+#include "vcfRecord.H"
 
 
-class splitFields {
-public:
-  splitFields(const char *string=NULL, char delim='\t');
-  ~splitFields();
-
-public:
-  void    split(const char *line, char delim='\t');  //  split by delim
-
-  uint32  numWords(void)        { return(_wordsLen); };
-
-  char   *operator[](uint32 i)  { return(first(i)); };
-
-  char   *first(uint32 i=0)     { return((_wordsLen <= i) ? NULL : _words[i]);  };
-  char   *shift(void)           {
-    if (_wordsLen == 0)                     //  If no words, nothing to return.
-      return(NULL);
-
-    for (uint32 ii=1; ii<_wordsLen; ii++)   //  Shift all words down one place, moving
-      swap(_words[ii-1], _words[ii]);       //  the word to shift off to the end.
-
-    return(_words[--_wordsLen]);            //  Return the word we shifted out.
-  };
-
-  char   *last(uint32 i=0)      { return((_wordsLen == 0) ? NULL : _words[_wordsLen - i - 1]); };
-  char   *pop(void)             { return((_wordsLen == 0) ? NULL : _words[--_wordsLen]);       };
-
-  int32   toint32(uint32 i)     { return(strtoint32 (_words[i])); };
-  uint32  touint32(uint32 i)    { return(strtouint32(_words[i])); };
-  int64   toint64(uint32 i)     { return(strtoint64 (_words[i])); };
-  uint64  touint64(uint32 i)    { return(strtouint64(_words[i])); };
-  double  todouble(uint32 i)    { return(strtodouble(_words[i])); };
-
-private:
-  uint32    _wordsLen;
-  uint32    _wordsMax;
-  char    **_words;
-
-  uint32    _charsLen;
-  uint32    _charsMax;
-  char     *_chars;
-};
-
-
-class vcfRecord {
-public:
-  vcfRecord();
-  vcfRecord(char *inLine);
-  ~vcfRecord();
-
-  void    load(char *inLine);
-  bool    isInvalid() { return !isValid;  };
-  void    save(compressedFileWriter* outFile);
-
-public:
-  char*         _chr;          //  CHR
-  uint32        _pos;          //  POS
-  char*         _id;           //  ID
-  char*         _ref;          //  REF
-  char*         _alts;         //  ALT
-  float         _qual;         //  QUAL
-  char*         _filter;       //  FILTER
-  char*         _info;         //  INFO
-  char*         _formats;      //  FORMAT
-  char*         _samples;      //  SAMPLE
-  int           _size_alts;    //  Num. alt variants
-  int           _size_format;  //  Num. format values
-  splitFields*  _arr_alts;
-  splitFields*  _arr_formats;
-  splitFields*  _arr_samples;
-  bool           isValid = true;  //  has non-sense GT?
-};
-
-
-/**********************************************
- * Parse gt and infer haplotype 1 and 2 to alleles.
- * alleles[0] is the first allele (REF),
- * alleles[1] is the first non-reference allele (ALT).
- *********************************************/
+//  A single variant position, with alleles listed.
+//    _allele[0] is the reference allele.
+//    _allele[1] is the first alternate allele.
+//
 class gtAllele {
 public:
   gtAllele(vcfRecord *record);
   ~gtAllele();
 
 public:
-  vcfRecord*    _record;
-  uint32        _pos;
-  uint32        _refLen;
-  vector<char*> *alleles;
-
-private:
-  void parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles, bool &isValid);
+  vcfRecord            *_record;    //  Pointer to the record this allele came from
+  uint32                _pos;       //  Position of this allele in the reference
+  uint32                _refLen;    //  Length of the reference allele
+  vector<char const *>  _alleles;   //  List of alleles; pointers into _record.
 };
 
-/****************************************************
- *  _rStart : 0-base, ref coord. POS-1from vcf
- *  _rEnd   : 1-base, ref coord.
- *  _rStart ~ _rEnd : ref bases affected by this var
- *  
- ****************************************************/
+
+//  A collection of variant positions that are 'close enough' to
+//  each other to be considered as one.
+//
+//  The start/end coordinates are just min/max of all the gtAllele
+//  in this set.
+//
 class posGT {
 public:
   posGT(vcfRecord *record) {
-    _chr         = record->_chr;
-    _rStart      = record->_pos - 1;
-    _rEnd        = _rStart + 1;
-    _gts         = new vector<gtAllele*>();
     gtAllele *gt = new gtAllele(record);
 
-    addGtAllele(gt);
+    _chr         = record->get_chr();
 
+    _gts.push_back(gt);
+
+    _rStart      = gt->_pos;
+    _rEnd        = gt->_pos + gt->_refLen;
   };
   ~posGT();
 
 public:
-  uint32             _rStart;
-  uint32             _rEnd;
-  vector<gtAllele*> *_gts;
-
-public:
-  int    size() {
-  
-  return _gts->size();
-  
-  };
-
-public:
   void    addGtAllele(gtAllele *gt) {
-    _gts->push_back(gt);
+    _gts.push_back(gt);
 
-    uint32 rStart = gt->_pos;                // already 0-based
-    uint32 rEnd   = rStart + gt->_refLen;    // use refLen to get actual ref coords
-
-    _rStart = ( rStart < _rStart ) ? rStart : _rStart;
-    _rEnd   = ( rEnd   > _rEnd   ) ? rEnd   : _rEnd;
-
-    return;
+    _rStart = min(_rStart, gt->_pos);
+    _rEnd   = max(_rEnd,   gt->_pos + gt->_refLen);
   };
 
 public:
-  char* _chr;
+  char const        *_chr;      //  Pointer to the CHROM string in the input record.
+  uint32             _rStart;   //  Reference start of this variant
+  uint32             _rEnd;     //  Reference end of this variant
+  vector<gtAllele*>  _gts;      //  List of alleles for this variant
 };
+
+
 
 
 class vcfFile {
 public:
-  vcfFile(char *inName);
-  ~vcfFile();
+  vcfFile(char *inName) {
+    loadFile(inName);
+  }
+
+  ~vcfFile() {
+    for (uint32 ii=0; ii<_records.size(); ii++)
+      delete _records[ii];
+  }
 
   bool    loadFile(char *inName);
-  bool    saveFile(compressedFileWriter *outFile);
-  bool    mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);	//  Merge ChrPosGT when POS are within ksize
-  vector<string> getHeaders()  { return _headers; };
+
+  bool    saveFile(compressedFileWriter *outFile) {
+    for (uint32 ii=0; ii<_records.size(); ii++)
+      if (_records[ii])
+        _records[ii]->save(outFile);
+
+    return(true);
+  }
+
+  //  Merge ChrPosGT when POS are within ksize
+  bool            mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit);
+
+  vector<string>  getHeaders(void)  {
+    return _headers;
+  };
 
 public:
-  char                           *_fName;
-  int32                           _numChr;  //  num. of CHR entries
+  int32                           _numChr      = 0;  //  num. of CHR entries
   vector<string>                  _headers;
   vector<vcfRecord *>             _records;
-  map<string, vector<posGT *>* > *_mapChrPosGT; 
 
+  //  Maps a chromosome name (string) to a vector.
+  //  When loading the file, 
+  map<string, vector<posGT *>* >  _mapChrPosGT; 
 };
 
 

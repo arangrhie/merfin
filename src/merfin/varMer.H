@@ -1,14 +1,12 @@
 
 /******************************************************************************
  *
- *  This file is part of canu, a software program that assembles whole-genome
- *  sequencing reads into contigs.
+ *  This is a k-mer based variant evaluation tool for polishing assemblies.
  *
  *  This software is based on:
- *    'Celera Assembler' r4587 (http://wgs-assembler.sourceforge.net)
- *    the 'kmer package' r1994 (http://kmer.sourceforge.net)
+ *    'Meryl'                  (https://github.com/marbl/meryl)
  *
- *  Except as indicated otherwise, this is a 'United States Government Work',
+ *  This is a 'United States Government Work',
  *  and is released in the public domain.
  *
  *  File 'README.licenses' in the root directory of this distribution
@@ -18,16 +16,14 @@
 #ifndef AS_UTL_VARMER_H
 #define AS_UTL_VARMER_H
 
-#include "runtime.H"
-#include "types.H"
-#include "kmers.H"
-#include "kmetric.H"
-#include "varMer.H"
+#include "merfin-globals.H"
+
 #include <string>
 #include <algorithm>
 #include <map>
 #include <vector>
 #include <cmath>
+
 using namespace std;
 
 
@@ -41,7 +37,7 @@ public:
 
   void addSeqPath(string seq, vector<int> idxPath, vector<uint32> refIdxList, vector<uint32> refLenPath);
 
-  void score(merylExactLookup *rlookup, merylExactLookup *alookup, vector<string> copyKmerDict);
+  void score(merfinGlobal *g);
 
   string  bestVariant();
   vector<vcfRecord*>  bestVariantOriginalVCF();

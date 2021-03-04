@@ -1,14 +1,12 @@
 
 /******************************************************************************
  *
- *  This file is part of canu, a software program that assembles whole-genome
- *  sequencing reads into contigs.
+ *  This is a k-mer based variant evaluation tool for polishing assemblies.
  *
  *  This software is based on:
- *    'Celera Assembler' r4587 (http://wgs-assembler.sourceforge.net)
- *    the 'kmer package' r1994 (http://kmer.sourceforge.net)
+ *    'Meryl'                  (https://github.com/marbl/meryl)
  *
- *  Except as indicated otherwise, this is a 'United States Government Work',
+ *  This is a 'United States Government Work',
  *  and is released in the public domain.
  *
  *  File 'README.licenses' in the root directory of this distribution
@@ -22,143 +20,67 @@
 #include <vector>
 
 
-gtAllele::gtAllele(vcfRecord *record) {
-    _record = record;
-    _pos  = record->_pos - 1;
-    alleles = new vector<char*>;
-    
-    //  fprintf(stderr, "[ DEBUG ] :: (*record->_arr_samples)[0] = %s\n", (*record->_arr_samples)[0]);
+gtAllele::gtAllele(vcfRecord *r) {
 
-    if ( strncmp((*record->_arr_samples)[0], "./.", 3) == 0 
-      || strncmp((*record->_arr_samples)[0], "0/0", 3) == 0) {
-      record->isValid = false;
-      //  fprintf(stderr, "[ DEBUG ] :: %s is invalid.\n", (*record->_arr_samples)[0]);
-      return;
-    }
+  //  Initialize the easy stuff.
 
-    splitFields GT((*record->_arr_samples)[0], '/');
-    alleles->push_back(record->_ref);   //  make the alleles.at(0) always be the ref allele
-    _refLen    = strlen(record->_ref);
-    parseGT(GT[0], record->_ref, record->_arr_alts, alleles, record->isValid);
-    parseGT(GT[1], record->_ref, record->_arr_alts, alleles, record->isValid);
+  _record = r;
+  _pos    = _record->get_pos() - 1;
+  _refLen = strlen(_record->get_ref());
 
-    /*  test
-    //  fprintf(stderr, "[ DEBUG ] :: gtAlleles at pos=%u are %lu :", _pos, alleles->size());
-    for ( int i = 0; i < alleles->size(); i++) {
-      fprintf(stderr, " %d = %s", i, alleles->at(i));
-    }
-    fprintf(stderr, "\n");
-    */
-}
+  //  
 
-
-void
-gtAllele::parseGT(char* gt, char *ref, splitFields *alts, vector <char*> *alleles, bool &isValid) {
-
-    // is "." or ref allele
-    if ( strcmp(gt, ".") == 0 ) {
-      isValid = false;
-      //  Do nothing
-    } else if (strcmp(gt, "0") == 0 ) {
-      //  Do nothing
-    } else {
-      uint32  altIdx  = strtouint32(gt) - 1;    // gt starts from 1, index from 0
-      char* hap = (*alts)[altIdx];
-
-      vector<char*>::iterator it = find (alleles->begin(), alleles->end(), hap);
-      if ( it == alleles->end() )  //  only add if hap wasn't already added
-        alleles->push_back(hap);
-    }
-}
-
-
-vcfRecord::vcfRecord() {
-  _chr         = NULL;
-  _pos         = UINT32_MAX;
-  _id          = NULL;
-  _ref         = NULL;
-  _alts        = NULL;
-  _qual        = 0;
-  _filter      = NULL;
-  _info        = NULL;
-  _formats     = NULL;
-  _samples     = NULL;
-  _size_alts   = 0;
-  _size_format = 0;
-}
-
-
-vcfRecord::vcfRecord(char *inLine) {
-  load(inLine);
-}
-
-
-vcfRecord::~vcfRecord() {
-  delete [] _chr;
-  delete [] _id;
-  delete [] _ref;
-  delete [] _alts;
-  delete [] _filter;
-  delete [] _info;
-  delete [] _formats;
-  delete [] _samples;
-}
-
-
-void
-vcfRecord::load(char *inLine) {
-
-  splitFields W(inLine, '\t');
-  
-  if ( W.numWords() < 10 ) {
-    isValid = false;
+  if ((strncmp(_record->_arr_samples[0], "./.", 3) == 0) ||
+      (strncmp(_record->_arr_samples[0], "0/0", 3) == 0)) {
+    //  fprintf(stderr, "[ DEBUG ] :: %s is invalid.\n", (*record->_arr_samples)[0]);
+    _record->invalidate();
     return;
   }
 
-  _chr      = new char [strlen(W[0]) + 1];
-  _pos      = W.touint32(1);
-  _id       = new char [strlen(W[2]) + 1];
-  _ref      = new char [strlen(W[3]) + 1];
-  _alts     = new char [strlen(W[4]) + 1];
-  _qual     = W.todouble(5);
-  _filter   = new char [strlen(W[6]) + 1];
-  _info     = new char [strlen(W[7]) + 1];
-  _formats  = new char [strlen(W[8]) + 1];
-  _samples  = new char [strlen(W[9]) + 1];
+  splitToWords GT(_record->_arr_samples[0], splitLetter, '/');
 
-  strcpy(_chr,    W[0]);
-  strcpy(_id,     W[2]);
-  strcpy(_ref,    W[3]);
-  strcpy(_alts,   W[4]);
-  strcpy(_filter, W[6]);
-  strcpy(_info,   W[7]);
-  strcpy(_formats,W[8]);
-  strcpy(_samples,W[9]);
+  _alleles.push_back(_record->get_ref());   //  _alleles[0] is ALWAYS the reference allele.
 
-  _arr_alts    = new splitFields(_alts, ',');
-  _arr_formats = new splitFields(_formats, ':');
-  _arr_samples = new splitFields(_samples, ':');
+  //  Add alternate alleles to the list, as long as they aren't already there.
 
+  for (uint32 ii=0; ii<GT.numWords(); ii++) {
+    int32   altIdx = strtoint32(GT[ii]);
+
+    if (altIdx <= 0) {        //  This handles the case of gt being the empty string,
+      _record->invalidate();  //  gt being "0" (or "00", etc), or gt being non-numeric,
+      continue;               //  (and even invalid stuff like negative numbers).
+    }
+
+    //  Add the alternate allele for this variant to the list of alleles if it
+    //  isn't already there.  Since the alleles come from the same source, we
+    //  can just compare pointers.
+    //
+    //  Well, no, we cannot just compare pointers, since the reference allele will
+    //  have a guaranteed different address to any alternate allele.
+
+    char const *hap = _record->_arr_alts[altIdx - 1];
+
+    //  Search for pointer-to-pointer matches between any alternate alleles.
+    if (hap != nullptr) {
+      for (uint32 ii=0; ii<_alleles.size(); ii++)
+        if (_alleles[ii] == hap)
+          hap = nullptr;
+    }
+
+    //  If not found, search for string matches between the reference and alternate.
+
+    if (hap != nullptr) {
+      if (strcmp(_alleles[0], hap) == 0)
+        hap = nullptr;
+    }
+
+    if (hap != nullptr)           //  If it's null, we found it
+      _alleles.push_back(hap);   //  on the list already.
+  }
 }
 
-void
-vcfRecord::save(compressedFileWriter *outFile) {
-  fprintf(outFile->file(), "%s\t%d\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\n",
-          _chr, _pos, _id, _ref, _alts, _qual, _filter, _info, _formats, _samples);
-}
-
-vcfFile::vcfFile(char *inName) {
-  _numChr     = 0;
-  _fName      = inName;
-  _mapChrPosGT = new map<string, vector<posGT*>*>();
-  loadFile(inName);
-}
 
 
-vcfFile::~vcfFile() {
-  for (uint32 ii=0; ii<_records.size(); ii++)
-    delete _records[ii];
-}
 
 
 bool
@@ -169,73 +91,52 @@ vcfFile::loadFile(char *inName) {
 
   compressedFileReader F(inName);
 
-  vcfRecord *record = NULL;
-  string chr;
-  string prevChr;
-
   uint64 excluded = 0;
 
   while (AS_UTL_readLine(L, Llen, Lmax, F.file())) {
 
-    // Header line?
+    //  Save all the header lines as is - push_back is copying L into a
+    //  string.  Count the number of unique CHR ids.  Then get another line.
+
     if (L[0] == '#') {
-      // keep header lines
       _headers.push_back(L);
 
-      // Count unique CHR ids
-      if(strncmp(L, "##contig=<ID", strlen("##contig=<ID")) == 0) {
+      if (strncmp(L, "##contig=<ID", 12) == 0)
         _numChr++;
-        
-      }
 
-      continue;	// No need to handle the header lines
-    }
-
-    record = new vcfRecord(L);
-
-    //  check the record is valid
-    //  exclude: 0/0, ./.
-    if ( record->isInvalid() ) {
-      excluded++;
       continue;
     }
 
-    _records.push_back(record);
+    //  Attempt to convert this line into a vcfRecord.  If it fails, delete the
+    //  incomplete record; otherwise save it onto the master list of records
+    //  and add a posGT to the per-chromosome list.
 
-    chr = record->_chr;
-    // fprintf(stderr, "[ DEBUG ] :: L = %s\n", L);
+    vcfRecord *record = new vcfRecord;
 
-    //  is a new chromosome?
-    if ( prevChr.empty() || chr.compare(prevChr) != 0 ) {
-      _mapChrPosGT->insert(pair<string, vector<posGT*> *> (chr, new vector<posGT*>()));
-      // fprintf(stderr, "[ DEBUG ] :: Made a new posGT list for %s\n", chr.c_str());
+    if (record->load(L) == false) {
+      excluded++;
+      delete record;
     }
-    prevChr = chr;
+    else {
+      _records.push_back(record);
+
+      string  chr = record->get_chr();
+
+      if (_mapChrPosGT.count(chr) == 0)
+        _mapChrPosGT[chr] = new vector<posGT *>;
+
+      _mapChrPosGT[chr]->push_back(new posGT(record));
+    }
   }
 
   delete [] L;
 
   fprintf(stderr, "   Collected " F_SIZE_T " header lines.\n", _headers.size());
-  fprintf(stderr, "   Loaded " F_SIZE_T " records with %lu unique contig(s) from  %u contig IDs.\n", _records.size(), _mapChrPosGT->size(), _numChr);
-  fprintf(stderr, "   while excluding %lu invalid records\n\n", excluded);
-
-  // Iterate through the records and get per chr posGTs
-  for (uint32 ii = 0; ii < _records.size(); ii++) {
-    //  fprintf(stderr, "[ DEBUG ] :: _records.at(ii)->_pos : %u\n", _records.at(ii)->_pos);
-    chr = string(_records[ii]->_chr);
-    _mapChrPosGT->at(chr)->push_back(new posGT(_records[ii]));
-  }
-
-  return(true);
-}
-
-
-bool
-vcfFile::saveFile(compressedFileWriter *outFile) {
-
-  for (uint32 ii=0; ii<_records.size(); ii++)
-    if (_records[ii])
-      _records[ii]->save(outFile);
+  fprintf(stderr, "   Loaded " F_SIZE_T " records:\n", _records.size());
+  fprintf(stderr, "      %-8lu unique contig%s\n", _mapChrPosGT.size(), (_mapChrPosGT.size() == 1) ? "" : "s");
+  fprintf(stderr, "      %-8u contig IDs\n", _numChr);
+  fprintf(stderr, "   Excluded %lu invalid records\n", excluded);
+  fprintf(stderr, "\n");
 
   return(true);
 }
@@ -243,165 +144,96 @@ vcfFile::saveFile(compressedFileWriter *outFile) {
 
 
 
+//  The goal is to merge posGT elements in the list that are within 2(k-1) of each other.
+//
 bool
 vcfFile::mergeChrPosGT(uint32 ksize, uint32 comb, bool nosplit) {
 
-  uint32 K_OFFSET  =  ksize--;	// ksize - 1
+  uint32 K_OFFSET =  2 * ksize;
 
-  map<string , vector<posGT*> *>::iterator it;
-
-  #pragma omp parallel private(it)
-  {
-  for ( it = _mapChrPosGT->begin(); it != _mapChrPosGT->end(); it++ ) {
     //  for each chromosome - posGTlist
-    #pragma omp single nowait
-    {
+  for (auto it = _mapChrPosGT.begin(); it != _mapChrPosGT.end(); it++ ) {
+    string          chr       =  it->first;
+    vector<posGT*> &inlist    = *it->second;         //  A reference to the vector
+    vector<posGT*> *otlist    = new vector<posGT*>;  //  A new list with the merged posGT's
 
-    //  Initialize variables
-    int removed   = 0;
-    string chr    = it->first;
-    vector<posGT*> *posGTlist  = it->second;
-    int posGtSizeB = posGTlist->size();	// Before
-    int posGtSizeA = posGTlist->size();	// After
+    uint32          removed   = 0;
+    uint32          split     = 0;
+    uint32          merged    = 0;
 
-    // fprintf(stderr, "[ DEBUG ] :: Merge variants in %s ... \n", chr.c_str());
-    if ( posGtSizeB == 1 ) {
-      fprintf(stderr, "%s : Nothing to merge. Only 1 variant found.\n", chr.c_str());
-    }else{
+    //  Nothing to do if there is only one thing on the list!
+    //if (inlist.size() == 1)
+    //  continue;
 
-    //  Get first start and end
-    uint32 start     = posGTlist->at(0)->_rStart;
-    uint32 end       = posGTlist->at(0)->_rEnd;
+    //  Sort the original list by begin position.
+    auto byBeginCoord = [](posGT * const &A, posGT * const &B) { return(A->_rStart < B->_rStart); };
 
-    //  for each posGT,
-    //  keep order when iterating,
-    //  begin from [1] not [0]
-    for (int ii=1; ii<posGtSizeA;) {
-      uint32 iStart = posGTlist->at(ii)->_rStart;
-      uint32 iEnd   = posGTlist->at(ii)->_rEnd;
+    sort(inlist.begin(), inlist.end(), byBeginCoord);
 
-      //  ignore gts with 0 alleles (0/0 or ./.)
-      vector<gtAllele*> *gts = posGTlist->at(ii)->_gts;
-      if (gts->at(0)->alleles->size() == 0 ) {
-        // fprintf(stderr, "[ DEBUG ] :: erase posGTlist->(%d) \n", ii);
-        posGTlist->erase(posGTlist->begin() + ii);
-        posGtSizeA--;
+    //  Push the first posGT onto the output list.
+
+    otlist->push_back(inlist[0]);
+
+    //  Iterate over all the other input posGT's.
+
+    for (uint32 ii=1; ii < inlist.size(); ii++) {
+
+      //  Silently skip input any posGT that has no alleles.
+      if (inlist[ii]->_gts.size() == 0) {
         removed++;
         continue;
       }
 
-      //  fprintf(stderr, "[ DEBUG ] :: start=%u, end=%u, iStart=%u, iEnd=%u\n", start, end, iStart, iEnd);
+      //  We must be sorted.
+      assert(otlist->back()->_rStart <= inlist[ii]->_rStart);
 
-      //  Is ii overlapping with ii-1 th posGT ?
-      //  Move - K_OFFSET from left to right (or vice versa)
-      //  to prevent overflow
-      if (
-          (
-           ( iStart < end + (2 * K_OFFSET) && start < iStart)
-           || // In case not sorted
-           ( iEnd + (2 * K_OFFSET) > start && iEnd < end )
-          )
-          && 
-          (
-           (posGTlist->at(ii-1)->size() < comb)
-           ||
-           nosplit
-          )
-         ) {
+      //  If this input record does not overlap with the most recent output record,
+      //  or the most recent output record has more than 'comb' items and splitting is allowed,
+      //  make a new output.
 
-        //  Add gts to previous posGT
-        //  fprintf(stderr, "[ DEBUG ] :: Num. alleles = %u. Allele at %u = %s\n", gts->at(0)->alleles->size(), 0, gts->at(0)->alleles->at(0));
-        posGTlist->at(ii-1)->addGtAllele(gts->at(0));
-        // fprintf(stderr, "[ DEBUG ] :: Adding allele at %u to %u\n", gts->at(0)->_pos, posGTlist->at(ii-1)->_gts->at(0)->_pos);
-     
-        //  fprintf(stderr, "[ DEBUG ] :: Total gts at pos %u: %u. Total gts = %u\n", posGTlist->at(ii-1)->_gts->at(0)->_pos, posGTlist->at(ii-1)->_gts->size(), posGTlist->size());
-        //  Remove posGTlist[ii]
-        // fprintf(stderr, "[ DEBUG ] :: Remove allele at %u\n", ii);
-        posGTlist->erase(posGTlist->begin() + ii);
-        //  fprintf(stderr, "[ DEBUG ] :: Now allele at %u is %u. Total gts = %u\n", ii, posGTlist->at(ii)->_gts->at(0)->_pos, posGTlist->size());
-        posGtSizeA--;
-        removed++;
+      bool  overlapping = (inlist[ii]->_rStart < otlist->back()->_rEnd + K_OFFSET);
+      bool  toomany     = (otlist->back()->_gts.size() >= comb);
 
-				//  Extend end
-				if ( iEnd > end )
-					end = iEnd;
-
-      } else if (posGTlist->at(ii-1)->size() >= comb && !nosplit) {
-      
-        fprintf(stderr, "---%s : More than %u variants in the combination when variant at position %u is included. Splitting. Consider filtering the vcf upfront.\n", chr.c_str(), posGTlist->at(ii-1)->size(), posGTlist->at(ii)->_rStart);
-        start = posGTlist->at(ii)->_rStart;
-        end   = posGTlist->at(ii)->_rEnd;
-        ii++;
-      
-      } else {
-        start = posGTlist->at(ii)->_rStart;
-        end   = posGTlist->at(ii)->_rEnd;
-        ii++;
+      if (overlapping == false) {     //  Boring, just no overlap between variants.
+        //fprintf(stderr, "%s : No overlap to previous variant at position %u-%u; make new cluster starting at position %u-%u.\n",
+        //        chr.c_str(),
+        //        otlist->back()->_rStart, otlist->back()->_rEnd,
+        //        inlist[ii]->_rStart, inlist[ii]->_rEnd);
+        otlist->push_back(inlist[ii]);
+        continue;
       }
+
+      if ((toomany == true) &&        //  Exciting!  A big pile of variants at this position,
+          (nosplit == false)) {       //  and we're allowed to split large clusters.
+        //fprintf(stderr, "%s : More than %u variants at position %u-%u; split variants starting at position %u-%u into a new set.\n",
+        //        chr.c_str(),
+        //        comb,
+        //        otlist->back()->_rStart, otlist->back()->_rEnd,
+        //        inlist[ii]->_rStart, inlist[ii]->_rEnd);
+        otlist->push_back(inlist[ii]);
+        split++;
+        continue;
+      }
+
+      //  Otherwise, we're overlapping AND allowed to merge, so do that.
+
+      //fprintf(stderr, "%s : Merge variant at %u into cluster at %u-%u.\n",
+      //        chr.c_str(),
+      //        inlist[ii]->_rStart,
+      //        otlist->back()->_rStart, otlist->back()->_rEnd);
+      otlist->back()->addGtAllele(inlist[ii]->_gts[0]);
+      merged++;
     }
-    fprintf(stderr, "%s : Reduced %d variants down to %d combinations for evaluation (merged %d)\n", chr.c_str(), posGtSizeB, posGtSizeA, removed);
+
+    fprintf(stderr, "%s : Reduced %lu variants down to %lu combinations for evaluation:\n", chr.c_str(), inlist.size(), otlist->size());
+
+    if (removed > 0)   fprintf(stderr, "%s :   Removed %u empty alleles.\n", chr.c_str(), removed);
+    if (split   > 0)   fprintf(stderr, "%s :   Split   %u complicated combinations.\n", chr.c_str(), split);
+    if (merged  > 0)   fprintf(stderr, "%s :   Merged  %u variants into combinations.\n", chr.c_str(), merged);
+
+    delete _mapChrPosGT[chr];
+    _mapChrPosGT[chr] = otlist;
   }
-  }
-  }
- }
- return(true);
+
+  return(true);
 }
-
-
-
-splitFields::splitFields(const char *string, char delim) {
-  _wordsLen  = 0;
-  _wordsMax  = 0;
-  _words     = NULL;
-
-  _charsLen = 0;
-  _charsMax = 0;
-  _chars    = NULL;
-
-  if (string)
-    split(string, delim);
-
-}
-
-
-splitFields::~splitFields() {
-  delete [] _chars;
-  delete [] _words;
-}
-
-
-void
-splitFields::split(const char *line, char delim) {
-
-  _wordsLen = 0;        //  Initialize to no words
-  _charsLen = 0;        //  and no characters.
-
-  if (line == NULL)     //  Bail if there isn't a line to process.
-    return;
-
-  while (line[_charsLen] != 0)
-    if (line[_charsLen++] == delim)
-      _wordsLen++;
-
-  resizeArray(_words, 0, _wordsMax, _wordsLen + 1);
-  resizeArray(_chars, 0, _charsMax, _charsLen + 1);
-
-  memset(_words, 0,    sizeof(char *) * (_wordsLen + 1));
-  memcpy(_chars, line, sizeof(char)   * (_charsLen + 1));
-
-  _wordsLen = 0;
-
-  for (uint32 st=1, ii=0; ii < _charsLen; ii++) {
-    if (line[ii] == delim) {                //  If the character is a word
-      _chars[ii] = 0;                       //  separator, convert to NUL,
-      st         = true;                    //  and flag the next character
-    }                                       //  as the start of a new word.
-
-    else if (st) {                          //  Otherwise, if this is the
-      _words[_wordsLen++] = _chars + ii;    //  start of a word, make
-      st                  = false;          //  a new word.
-    }
-  }
-}
-
-
