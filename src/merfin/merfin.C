@@ -234,6 +234,9 @@ main(int32 argc, char **argv) {
     //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
+    fprintf(stderr, "  -completeness\n");
+    fprintf(stderr, "   Compute kmer completeness using expected copy numbers for all kmers.\n");
+    fprintf(stderr, "\n");    
     fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
     fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
     fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
