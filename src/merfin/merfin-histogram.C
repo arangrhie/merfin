@@ -71,7 +71,8 @@ processHistogram(void *G, void *T, void *S) {
     if (asmK > readK) {
       uint32  idx = ((asmK / readK - 1) + 0.1) / 0.2;
 
-      increaseArray(s->undr, idx, s->undrMax, 1024, _raAct::copyData | _raAct::clearNew);
+      increaseArray(s->undr, idx+1, s->undrMax, 1024, _raAct::copyData | _raAct::clearNew);
+      assert(idx < s->undrMax);
       s->undr[idx]++;
 
       //  TODO: Check if this kmer was already counted. Only if not,
@@ -83,7 +84,8 @@ processHistogram(void *G, void *T, void *S) {
     else {
       uint32  idx = ((readK / asmK - 1) + 0.1) / 0.2;
 
-      increaseArray(s->over, idx, s->overMax, 1024, _raAct::copyData | _raAct::clearNew);
+      increaseArray(s->over, idx+1, s->overMax, 1024, _raAct::copyData | _raAct::clearNew);
+      assert(idx < s->overMax);
       s->over[idx]++;
     }
   }
@@ -112,10 +114,12 @@ outputHistogram(void *G, void *S) {
   g->histKoverCpy += s->koverCpy;
 
   increaseArray(g->histUndr, s->undrMax, g->histUndrMax, 1024, _raAct::copyData | _raAct::clearNew);
+  assert(s->undrMax <= g->histUndrMax);
   for (uint32 ii=0; ii<s->undrMax; ii++)
     g->histUndr[ii] += s->undr[ii];
 
   increaseArray(g->histOver, s->overMax, g->histOverMax, 1024, _raAct::copyData | _raAct::clearNew);
+  assert(s->overMax <= g->histOverMax);
   for (uint32 ii=0; ii<s->overMax; ii++)
     g->histOver[ii] += s->over[ii];
 
