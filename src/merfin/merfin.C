@@ -285,16 +285,19 @@ main(int32 argc, char **argv) {
   if (G->reportType == OP_HIST) {
     fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", G->outName);
     ss = new sweatShop(loadSequence, processHistogram, outputHistogram);
+    ss->setInOrderOutput(false);
   }
 
   if (G->reportType == OP_DUMP) {
     fprintf(stderr, "-- Dump per-base k* metric to '%s'.\n", G->outName);
     ss = new sweatShop(loadSequence, processDump, outputDump);
+    ss->setInOrderOutput(true);
   }
 
   if (G->reportType == OP_VAR_MER) {
     fprintf(stderr, "-- Generate variant mers and score them.\n");
     ss = new sweatShop(loadSequence, processVariants, outputVariants);
+    ss->setInOrderOutput(false);
   }
 
   if (G->reportType == OP_COMPL) {
@@ -316,8 +319,6 @@ main(int32 argc, char **argv) {
     ss->setLoaderQueueSize(G->threads * 2);
     ss->setWorkerBatchSize(1);
     ss->setWriterQueueSize(16384);
-
-    ss->setInOrderOutput(false);
 
     ss->run(G, true);
   }
