@@ -43,7 +43,7 @@ The output of `-dump` can be further converted to `.Wig/.bw` tracks for visualiz
 ```
 awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep chrom="chr" span=1"};if($3!=0){printf $2+1"\t"$5"\n"}}' $dump_output > $dump_output.Wig
 #Convert to bigWig:
-wigToBigWig $dump_output.Wig $dump_output.bw
+wigToBigWig $dump_output.Wig chr.sizes $dump_output.bw
 ```
 
 ### Assess per base QV ###
