@@ -46,6 +46,9 @@ awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep c
 wigToBigWig $dump_output.Wig chr.sizes $dump_output.bw
 ```
 
+#### Assess correlation between data types
+If you have multiple data types (e.g. HiFi and Illumina) you can also assess the K* agreement between them genome-wide. Use the same output of `-dump` with the script `Kstar_correlation.sh` in the scripts folder.
+
 ### Assess per base QV ###
 Merfin will quickly produce [Merqury](https://github.com/marbl/merqury) QV estimates for each scaffold and genome-wide averages when `-hist` is used. Merqury QV estimate consider only kmers missing from the read sets. In addition, Merfin produces a QV* estimate, which accounts also for kmers that are seen in excess with respect to their expected multiplicity predicted from the reads.
 
