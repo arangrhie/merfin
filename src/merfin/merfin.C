@@ -320,7 +320,7 @@ main(int32 argc, char **argv) {
     ss->setWorkerBatchSize(1);
     ss->setWriterQueueSize(16384);
 
-    ss->run(G, true);
+    ss->run(G, false);
   }
 
   //  Call all the report methods.  If there are no results for some report,
