@@ -133,16 +133,12 @@ processVariants(void *G, void *T, void *S) {
   merfinThrData *t = (merfinThrData *)T;
   merfinInput   *s = (merfinInput *)S;
 
-  fprintf(stderr, "Processing sequence %s for variants\n", s->seq.ident());
-
   //  If no variants for this sequence, ignore it.
 
   map<string, vector<posGT*>*> &mapChrPosGT = g->inVcf->_mapChrPosGT;
 
-  if (mapChrPosGT.find(string(s->seq.ident())) == mapChrPosGT.end()) {
-    fprintf(stderr, "No variants in vcf for contig '%s'. Skipping.\n", s->seq.ident());
+  if (mapChrPosGT.find(string(s->seq.ident())) == mapChrPosGT.end())
     return;
-  }
 
   //  Initialize the per-thread data if needed.
 
@@ -161,6 +157,8 @@ processVariants(void *G, void *T, void *S) {
   vector<uint32>           refLenList;
   vector<int>              path;
   map<int, vector<char const *> > mapPosHap;
+
+  fprintf(stderr, "Processing sequence %s for variants\n", s->seq.ident());
 
   for (uint64 posGtIdx = 0; posGtIdx < posGTlist->size(); posGtIdx++) {
     posGT               *posGt  = posGTlist->at(posGtIdx);
@@ -310,7 +308,7 @@ outputVariants(void *G, void *S) {
   merfinGlobal  *g = (merfinGlobal *)G;
   merfinInput   *s = (merfinInput *)S;
 
-  fprintf(stderr, "Output sequence %s\n", s->seq.ident());
+  //fprintf(stderr, "Output sequence %s\n", s->seq.ident());
 
   //  Open the output file and write headers.
 
