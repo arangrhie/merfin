@@ -39,11 +39,18 @@ public:
 
   void score(merfinGlobal *g);
 
+public:
   string  bestVariant();
   vector<vcfRecord*>  bestVariantOriginalVCF();
+
+private:
   vector<vcfRecord*>  getOriginalVCF(int idx);
+
+private:
   string  getHomRecord(int idx);
   string  getHetRecord(int idx1, int idx2);
+
+public:
   double  getMinAbsK(int idx);
   double  getMaxAbsK(int idx);
   double  getAvgAbsK(int idx);  // avg. k*
