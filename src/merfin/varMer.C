@@ -292,44 +292,57 @@ varMer::getOriginalVCF(int idx) {
  */
 string
 varMer::getHetRecord(int idx1, int idx2) {
-
   string records;
+
   for ( int i = 0; i < gtPaths.at(idx1).size(); i++) {
     int altIdx1 = gtPaths.at(idx1).at(i);
     int altIdx2 = gtPaths.at(idx2).at(i);
 
     // alt1 == ref && alt2 == ref: ignore
     if ( altIdx1 + altIdx2 > 0 ) {
-      records = records + posGt->_chr + "\t" + 
-        to_string(posGt->_gts[i]->_pos+1) + "\t.\t" +
-        posGt->_gts[i]->_alleles[0] + "\t";
+      //  Two problems here.  First, this isn't really the correct qual
+      //  value.  Second, qual can be a floating point value and so we input
+      //  it as such, but printing it as one results in 6 digits of precision
+      //  with no easy way to change it.  So we cast it to an integer.
+      string qualStr = to_string((int)posGt->_gts[i]->_qual);
+
+      records = records +
+                posGt->_chr + "\t" + 
+                to_string(posGt->_gts[i]->_pos+1) + "\t" + 
+                "." + "\t" +
+                posGt->_gts[i]->_alleles[0] + "\t";
 
       // alt1 == alt2: 1/1
       // Sometimes, there are cases where path is different but the allele chosen overlaps
       if ( altIdx1 == altIdx2 ) {
-        records = records + posGt->_gts[i]->_alleles[altIdx1] + "\t.\t" +
-          "PASS\t.\tGT\t1/1\n";
+        records = records +
+                  posGt->_gts[i]->_alleles[altIdx1] + "\t" +
+                  qualStr + "\t" +
+                  "PASS\t.\tGT\t1/1\n";
 
 
       }
       // alt1 == ref && alt2 == alt: 0/1
       else if ( altIdx1 == 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts[i]->_alleles[altIdx2] + "\t.\t" +
-          "PASS\t.\tGT\t0/1\n";
+        records = records +
+                  posGt->_gts[i]->_alleles[altIdx2] + "\t" +
+                  qualStr + "\t" +
+                  "PASS\t.\tGT\t0/1\n";
 
-      } 
+      }
       // alt1 == alt && alt2 == alt: 1/2
       else if ( altIdx1 > 0 && altIdx2 > 0 ) {
-        records = records + posGt->_gts[i]->_alleles[altIdx1] +
-          "," +
-          posGt->_gts[i]->_alleles[altIdx2] +
-          "\t.\t" +
-          "PASS\t.\tGT\t1/2\n";
+        records = records +
+                  posGt->_gts[i]->_alleles[altIdx1] + "," + posGt->_gts[i]->_alleles[altIdx2] + "\t" +
+                  qualStr + "\t" +
+                  "PASS\t.\tGT\t1/2\n";
       }
       // alt1 == alt && alt2 == ref: 1/0
       else if ( altIdx1 > 0 && altIdx2 == 0 ) {
-        records = records + posGt->_gts[i]->_alleles[altIdx1] + "\t.\t" +
-          "PASS\t.\tGT\t1/0\n";
+        records = records +
+                  posGt->_gts[i]->_alleles[altIdx1] + "\t" +
+                  qualStr + "\t" +
+                  "PASS\t.\tGT\t1/0\n";
       }
     }
   }
@@ -342,12 +355,16 @@ varMer::getHomRecord(int idx) {
   for ( int i = 0; i < gtPaths.at(idx).size(); i++) {
     int altIdx = gtPaths.at(idx).at(i);
     if ( altIdx > 0 ) {
+      string qualStr = to_string((int)posGt->_gts[i]->_qual);  //  See comment above.
+
       // altIdx is the reference allele: ignore
-      records = records + posGt->_chr + "\t" +
-        to_string(posGt->_gts[i]->_pos+1) + "\t.\t" +
-        posGt->_gts[i]->_alleles[0] + "\t" +
-        posGt->_gts[i]->_alleles[altIdx] + "\t.\t" +
-        "PASS\t.\tGT\t1/1\n";
+      records = records +
+                posGt->_chr + "\t" +
+                to_string(posGt->_gts[i]->_pos+1) + "\t.\t" +
+                posGt->_gts[i]->_alleles[0] + "\t" +
+                posGt->_gts[i]->_alleles[altIdx] + "\t" +
+                qualStr + "\t" +
+                "PASS\t.\tGT\t1/1\n";
     }
   }
   return records;

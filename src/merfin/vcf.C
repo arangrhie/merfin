@@ -27,6 +27,7 @@ gtAllele::gtAllele(vcfRecord *r) {
   _record = r;
   _pos    = _record->get_pos() - 1;
   _refLen = strlen(_record->get_ref());
+  _qual   = _record->get_qual();
 
   //  
 

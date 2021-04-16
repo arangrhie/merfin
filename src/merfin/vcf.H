@@ -43,6 +43,7 @@ public:
   vcfRecord            *_record;    //  Pointer to the record this allele came from
   uint32                _pos;       //  Position of this allele in the reference
   uint32                _refLen;    //  Length of the reference allele
+  double                _qual;      //  QUAL of the input record
   vector<char const *>  _alleles;   //  List of alleles; pointers into _record.
 };
 

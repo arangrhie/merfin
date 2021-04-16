@@ -110,7 +110,7 @@ public:
   //char const   *get_id(void)           { return(_id);          }
   char const   *get_ref(void)          { return(_ref);         }
   //char         *get_alts(void)         { return(_alts);        }
-  //float         get_qual(void)         { return(_qual);        }
+  double        get_qual(void)         { return(_qual);        }
   //char         *get_filter(void)       { return(_filter);      }
   //char         *get_info(void)         { return(_info);        }
   //char         *get_formats(void)      { return(_formats);     }
@@ -126,7 +126,7 @@ private:
   char         *_id          = nullptr;    //  ID
   char         *_ref         = nullptr;    //  REF
   char         *_alts        = nullptr;    //  ALT
-  float         _qual        = 0.0;        //  QUAL
+  double        _qual        = 0.0;        //  QUAL
   char         *_filter      = nullptr;    //  FILTER
   char         *_info        = nullptr;    //  INFO
   char         *_formats     = nullptr;    //  FORMAT
