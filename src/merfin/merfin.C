@@ -108,14 +108,6 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-memory") == 0) {
       G->maxMemory = strtodouble(argv[++arg]);
 
-#if 0
-    } else if (strcmp(argv[arg], "-memory1") == 0) {
-      G->maxMemory += strtodouble(argv[++arg]);
-
-    } else if (strcmp(argv[arg], "-memory2") == 0) {
-      G->maxMemory += strtodouble(argv[++arg]);
-#endif
-
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       G->nosplit = true;
 
@@ -139,6 +131,9 @@ main(int32 argc, char **argv) {
 
     } else if (strcmp(argv[arg], "-comb") == 0) {
       G->comb = strtouint32(argv[++arg]);
+
+    } else if (strcmp(argv[arg], "-debug") == 0) {
+      G->debug = true;
 
     } else {
       char *s = new char [1024];
@@ -233,6 +228,7 @@ main(int32 argc, char **argv) {
     //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
     //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
     fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
+    fprintf(stderr, "             -debug     output a debug log, into <output>.THREAD_ID.debug.gz\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  -completeness\n");
     fprintf(stderr, "   Compute kmer completeness using expected copy numbers for all kmers.\n");

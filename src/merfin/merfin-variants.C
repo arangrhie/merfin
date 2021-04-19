@@ -142,7 +142,7 @@ processVariants(void *G, void *T, void *S) {
 
   //  Initialize the per-thread data if needed.
 
-  if (t->oDebug == nullptr) {
+  if ((g->debug == true) && (t->oDebug == nullptr)) {
     char  name[FILENAME_MAX+1];
 
     snprintf(name, FILENAME_MAX, "%s.%02d.debug.gz", g->outName, t->threadID);
@@ -237,42 +237,44 @@ processVariants(void *G, void *T, void *S) {
 
     //  Save debug info.
 
-    for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
-      fprintf(t->oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
-              t->varMerId++,
-              s->seq.ident(),
-              rStart,
-              rEnd,
-              seqMer->seqs[idx].c_str(),  //  seq
-              seqMer->numMs[idx],         //  missing
-              seqMer->getMinAbsK(idx),
-              seqMer->getMaxAbsK(idx),
-              seqMer->getMedAbsK(idx),
-              seqMer->getAvgAbsK(idx),
-              //seqMer->getAvgAbsdK(idx, RefAvgK),
-              seqMer->getTotdK(idx));
+    if (t->oDebug) {
+      for (uint64 idx = 0; idx < seqMer->seqs.size(); idx++) {
+        fprintf(t->oDebug->file(), "%lu\t%s:%u-%u\t%s\t%u\t%.5f\t%.5f\t%.5f\t%.5f\t%.5f\t",
+                t->varMerId++,
+                s->seq.ident(),
+                rStart,
+                rEnd,
+                seqMer->seqs[idx].c_str(),  //  seq
+                seqMer->numMs[idx],         //  missing
+                seqMer->getMinAbsK(idx),
+                seqMer->getMaxAbsK(idx),
+                seqMer->getMedAbsK(idx),
+                seqMer->getAvgAbsK(idx),
+                //seqMer->getAvgAbsdK(idx, RefAvgK),
+                seqMer->getTotdK(idx));
 
-      //  new vcf records
-      //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths[idx].size() %d\n", s->seq.ident(), rStart, rEnd, seqMer->gtPaths[idx].size());
+        //  new vcf records
+        //  fprintf(stderr, "%s:%u-%u seqMer->gtPaths[idx].size() %d\n", s->seq.ident(), rStart, rEnd, seqMer->gtPaths[idx].size());
 
-      if  ( seqMer->gtPaths[idx].size() > 0 ) {
-        for (uint64 i = 0; i < seqMer->gtPaths[idx].size(); i++) {
-          // Ignore the ref-allele (0/0) GTs
-          // print only the non-ref allele variants for fixing
-          int altIdx = seqMer->gtPaths[idx][i];
-          if (altIdx > 0) {
-            fprintf(t->oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
-                    s->seq.ident(),
-                    gts[i]->_pos+1,
-                    gts[i]->_alleles[0],
-                    gts[i]->_alleles[altIdx]
-                    );
+        if  ( seqMer->gtPaths[idx].size() > 0 ) {
+          for (uint64 i = 0; i < seqMer->gtPaths[idx].size(); i++) {
+            // Ignore the ref-allele (0/0) GTs
+            // print only the non-ref allele variants for fixing
+            int altIdx = seqMer->gtPaths[idx][i];
+            if (altIdx > 0) {
+              fprintf(t->oDebug->file(), "%s %u . %s %s . PASS . GT 1/1  ",
+                      s->seq.ident(),
+                      gts[i]->_pos+1,
+                      gts[i]->_alleles[0],
+                      gts[i]->_alleles[altIdx]
+                      );
+            }
           }
         }
-      }
 
-      fprintf(t->oDebug->file(), "\n");
-    }
+        fprintf(t->oDebug->file(), "\n");
+      }
+    }  //  End of debug dump.
 
     //  Generate output VCFs.
 

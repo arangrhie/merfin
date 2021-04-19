@@ -229,9 +229,7 @@ public:
 
   uint32                  reportType    = OP_NONE;
 
-
-
-
+  bool                    debug         = false;
 
 public:
   double                  peak          = 0;
