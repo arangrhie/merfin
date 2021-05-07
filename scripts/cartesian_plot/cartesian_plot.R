@@ -1,11 +1,25 @@
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+#!/usr/bin/env Rscript
 
-library(ggplot2)
-library(dplyr)
-library(ggpubr)
-library(RSvgDevice)
+args = commandArgs(trailingOnly=TRUE)
 
-kmers <- read.csv("chm13.draft_v1.0.freq", header = FALSE, sep = "\t", na.strings="NA")
+if (length(args)==0) {
+  stop("At least one argument must be supplied (input file).n", call.=FALSE)
+} else if (length(args)==1) {
+  args[2] = "correlation_Kstar"
+}
+
+inst_packages <- function(x){
+  for( i in x){
+    if(!require(i, character.only = TRUE)){
+      install.packages(i, repos='http://cran.us.r-project.org')
+      require(i, character.only = TRUE)
+    }
+  }
+}
+
+inst_packages(c("ggplot2" , "dplyr" , "RSvgDevice"))
+
+kmers <- read.csv(args[1], header = FALSE, sep = "\t", na.strings="NA")
 
 kmers <- kmers %>% mutate(missing = if_else(is.na(V2) | is.na(V3), 'missing', 'non_missing'))
 
@@ -47,11 +61,11 @@ g<-ggplot(kmers%>%arrange(desc(missing)), aes(x=V2, y=V3)) +
 #scale_color_manual(breaks = c("missing", "non_missing"),
 #                   values=c("red", "black"))
 
-devSVG(file = "correlation_Kstar.svg", width = 50, height = 50, bg = "white", fg = "black",
+devSVG(file = paste0(args[2],".svg"), width = 50, height = 50, bg = "white", fg = "black",
        onefile = TRUE, xmlHeader = TRUE)
 g
 dev.off()
 
-png("correlation_Kstar_4legend.png", width = 2000, height = 2000)
+png(paste0(args[2],".png"), width = 2000, height = 2000)
 g
 dev.off()
