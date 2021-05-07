@@ -42,6 +42,8 @@ The output of `-dump` can be further converted to `.Wig/.bw` tracks for visualiz
 
 ```
 awk 'BEGIN{print "track autoScale=on"}{if($1!=chr){chr=$1; print "variableStep chrom="chr" span=1"};if($3!=0){printf $2+1"\t"$5"\n"}}' $dump_output > $dump_output.Wig
+#Generate chromosome sizes:
+awk '$0 ~ ">" {if (NR > 1) {print c;} c=0;printf substr($0,2,100) "\t"; } $0 !~ ">" {c+=length($0);} END { print c; }' genome.fasta > chr.sizes
 #Convert to bigWig:
 wigToBigWig $dump_output.Wig chr.sizes $dump_output.bw
 ```
