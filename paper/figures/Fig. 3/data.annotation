@@ -1,0 +1,10 @@
+species	stage	protein-coding	codebreaks	frameshifts	low-quality	%cb	%fs	%lq
+fArcCen1	Unpolished	26228	450	3522	3618	1.7	13.4	13.8
+fArcCen1	Polished	26538	289	1148	1234	1.1	4.3	4.6
+fArcCen1	Merfin	26723	165	712	774	0.6	2.7	2.9
+rGopEvg1	Unpolished	19814	538	4130	4279	2.7	20.8	21.6
+rGopEvg1	Polished	20246	354	1167	1286	1.7	5.8	6.4
+rGopEvg1	Merfin	20119	205	588	683	1.0	2.9	3.4
+bTaeGut1	Unpolished	19814	538	4130	4279	2.7	20.8	21.6
+bTaeGut1	Polished	20246	354	1167	1286	1.7	5.8	6.4
+bTaeGut1	Merfin	20119	205	588	683	1.0	2.9	3.4

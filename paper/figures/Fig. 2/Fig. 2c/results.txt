@@ -1,0 +1,6 @@
+source	QV	QVstar
+June 2nd	72.63	33.83
+June 11th	71.11	33.65
+July 27th	69.36	35.91
+September 4th	69.70	35.90
+September 15th	69.31	35.88
