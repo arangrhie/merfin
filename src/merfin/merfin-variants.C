@@ -317,7 +317,11 @@ outputVariants(void *G, void *S) {
   if (g->oVCF == nullptr) {
     char  name[FILENAME_MAX+1];
 
-    snprintf(name, FILENAME_MAX, "%s.polish.vcf", g->outName);
+		if (g->bykstar)
+	    snprintf(name, FILENAME_MAX, "%s.polish.vcf", g->outName);
+		else
+	    snprintf(name, FILENAME_MAX, "%s.filter.vcf", g->outName);
+
 
     g->oVCF = new compressedFileWriter(name);
 
