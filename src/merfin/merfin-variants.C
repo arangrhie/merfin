@@ -53,8 +53,9 @@ traverse(uint32                          idx,
       replaced = candidate;
       replaced.replace(refIdxList[idx], refLenList[idx], hap);
 
-      //fprintf(stderr, "REPLACE candidate '%s' ->\n", candidate.c_str());
-      //fprintf(stderr, "REPLACE replaced  '%s' by change %u-%u to '%s'\n", replaced.c_str(), refIdxList[idx], refLenList[idx], hap);
+      //  Debug traversed variant we are testing
+      //  fprintf(stderr, "REPLACE candidate '%s' ->\n", candidate.c_str());
+      //  fprintf(stderr, "REPLACE replaced  '%s' by change %u-%u to '%s'\n", replaced.c_str(), refIdxList[idx], refLenList[idx], hap);
 
       //  Apply to the rest of the positions, after skipping overlaps
       //  refIdx in overlaps should remain as they were as we are using ref allele at these sites anyway
@@ -181,12 +182,12 @@ processVariants(void *G, void *T, void *S) {
 
     //  Debug report the mapPosHap
 
-    //fprintf(stderr, "\n");
-    //fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", s->seq.ident(), rStart, rEnd);
-    //fprintf(stderr, "[ DEBUG ] :: gts.size = %lu | ", gts.size());
-    //for (uint32 i = 0; i < gts.size(); i++)
-    //  fprintf(stderr, "gt->_pos = %u ",  gts[i]->_pos);
-    //fprintf(stderr, "\n");
+    //  fprintf(stderr, "\n");
+    //  fprintf(stderr, "[ DEBUG ] :: %s : %u - %u\n", s->seq.ident(), rStart, rEnd);
+    //  fprintf(stderr, "[ DEBUG ] :: gts.size = %lu | ", gts.size());
+    //  for (uint32 i = 0; i < gts.size(); i++)
+    //    fprintf(stderr, "gt->_pos = %u ",  gts[i]->_pos);
+    //  fprintf(stderr, "\n");
 
     //  Load mapPosHap
 
@@ -197,7 +198,6 @@ processVariants(void *G, void *T, void *S) {
       refLenList.push_back(gt->_refLen);
 
       //  add alleles. alleles[0] is always the ref allele
-#warning is this copying the whole vector?
       mapPosHap[i] = gt->_alleles;
     }
 
@@ -216,7 +216,7 @@ processVariants(void *G, void *T, void *S) {
       continue;
     }
 
-    //fprintf(stderr, "%s\n", refTemplate);
+    //  fprintf(stderr, "%s\n", refTemplate);
 
     //
 
@@ -250,7 +250,6 @@ processVariants(void *G, void *T, void *S) {
                 seqMer->getMaxAbsK(idx),
                 seqMer->getMedAbsK(idx),
                 seqMer->getAvgAbsK(idx),
-                //seqMer->getAvgAbsdK(idx, RefAvgK),
                 seqMer->getTotdK(idx));
 
         //  new vcf records

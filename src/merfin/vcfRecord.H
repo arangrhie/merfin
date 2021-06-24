@@ -48,7 +48,7 @@ public:
   //  DP - read depth
   //
   bool    load(char *inLine) {
-    _words.split(inLine, splitLetter, '\t');
+    _words.split(inLine, '\t');
 
     if (_words.numWords() < 10) {
       _words.erase();
@@ -66,9 +66,9 @@ public:
     _formats  = _words[8];
     _samples  = _words[9];
 
-    _arr_alts.   split(_alts,    splitLetter, ',');
-    _arr_formats.split(_formats, splitLetter, ':');
-    _arr_samples.split(_samples, splitLetter, ':');
+    _arr_alts.   split(_alts,    ',');
+    _arr_formats.split(_formats, ':');
+    _arr_samples.split(_samples, ':');
 
     _isValid  = true;
 
@@ -99,7 +99,7 @@ public:
     return(string(line));
   }
 
-  //  To enfore that this is a read-only object, there are only accessors
+  //  To enforce that this is a read-only object, there are only accessors
   //  that don't allow modifications.
   //
   //  Not all data is even accessed.

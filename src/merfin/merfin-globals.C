@@ -39,7 +39,7 @@ merfinGlobal::load_Kmetric(void) {
   char    *line    = nullptr;
 
   while (AS_UTL_readLine(line, lineLen, lineMax, F.file())) {
-    splitToWords  S(line, splitLetter, ',');
+    splitToWords  S(line, ',');
 
     if (S.numWords() == 2) {
       uint32  k = S.touint32(0);

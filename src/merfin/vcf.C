@@ -38,13 +38,19 @@ gtAllele::gtAllele(vcfRecord *r) {
     return;
   }
 
-  splitToWords GT(_record->_arr_samples[0], splitLetter, '/');
+	// Make this accept both '/' and '|' as delimiters
+
+	splitToWords GT;
+	GT.split(_record->_arr_samples[0], "|/");
 
   _alleles.push_back(_record->get_ref());   //  _alleles[0] is ALWAYS the reference allele.
 
   //  Add alternate alleles to the list, as long as they aren't already there.
 
   for (uint32 ii=0; ii<GT.numWords(); ii++) {
+		//	DEBUG :: print the GTs
+		//	fprintf(stderr, "[ DEBUG ] :: GT[%d]=%s\n", ii, GT[ii]);
+
     int32   altIdx = strtoint32(GT[ii]);
 
     if (altIdx <= 0) {        //  This handles the case of gt being the empty string,
