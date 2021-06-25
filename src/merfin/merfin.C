@@ -71,7 +71,7 @@ void computeCompleteness(merfinGlobal *G);
 
 int
 main(int32 argc, char **argv) {
-  merfinGlobal  *G = new merfinGlobal;
+  merfinGlobal  *G = new merfinGlobal(argv[0]);
 
   std::vector<const char *>  err;
   for (int32 arg=1; arg < argc; arg++) {
@@ -87,7 +87,7 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-peak") == 0) {
       G->peak = strtodouble(argv[++arg]);
 
-    } else if (strcmp(argv[arg], "-lookup") == 0) {
+    } else if (strcmp(argv[arg], "-prob") == 0) {
       G->pLookupTable = argv[++arg];
 
     } else if (strcmp(argv[arg], "-vcf") == 0) {
@@ -111,8 +111,11 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-nosplit") == 0) {
       G->nosplit = true;
 
-    } else if (strcmp(argv[arg], "-disable-kstar") == 0) {
-      G->bykstar = false;
+    } else if (strcmp(argv[arg], "-filter") == 0) {
+      G->reportType = OP_FILTER;
+
+    } else if (strcmp(argv[arg], "-polish") == 0) {
+      G->reportType = OP_POLISH;
 
     } else if (strcmp(argv[arg], "-hist") == 0) {
       G->reportType = OP_HIST;
@@ -122,9 +125,6 @@ main(int32 argc, char **argv) {
 
     } else if (strcmp(argv[arg], "-skipMissing") == 0) {
       G->skipMissing = true;
-
-    } else if (strcmp(argv[arg], "-vmer") == 0) {
-      G->reportType = OP_VAR_MER;
 
     } else if (strcmp(argv[arg], "-completeness") == 0) {
       G->reportType = OP_COMPL;
@@ -144,34 +144,35 @@ main(int32 argc, char **argv) {
 
   //  Check inputs are present for the various modes.
 
-  if ((G->reportType == OP_HIST) ||
-      (G->reportType == OP_DUMP) ||
-      (G->reportType == OP_VAR_MER)) {
+  if ((G->reportType == OP_HIST)   ||
+      (G->reportType == OP_DUMP)   ||
+      (G->reportType == OP_POLISH) ||
+      (G->reportType == OP_FILTER)) {
     if (G->seqName == nullptr)   err.push_back("No input sequences (-sequence) supplied.\n");
     if (G->outName == nullptr)   err.push_back("No output (-output) supplied.\n");
   }
 
-  if  (G->reportType == OP_VAR_MER) {
-    if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -vmer reports.\n");
+  if  (G->reportType == OP_POLISH || OP_FILTER) {
+    if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -filter or -polish.\n");
+  }
+
+  if (G->reportType != OP_FILTER) {
+    if (G->pLookupTable == nullptr && G->peak == 0)  err.push_back("No probability vector (-prob) nor haploid peak (-peak) supplied.\n");
   }
 
   if  (G->reportType == OP_NONE) {
-    err.push_back("No report type (-hist, -dump, -vmer, -completeness) supplied.\n");
+    err.push_back("No report type (-filter, -polish, -hist, -dump, -completeness) supplied.\n");
   }
 
-  if (G->seqDBname == nullptr)   err.push_back("No sequence meryl database (-seqmers) supplied.\n");
   if (G->readDBname == nullptr)  err.push_back("No read meryl database (-readmers) supplied.\n");
-  if (G->peak == 0)              err.push_back("Peak=0 or no haploid peak (-peak) supplied.\n");
 
-  //  check reportType OP_VAR_MER has vcfName
 
   if (err.size() > 0) {
     fprintf(stderr, "usage: %s <report-type>            \\\n", argv[0]);
     fprintf(stderr, "         -sequence <seq.fasta>     \\\n");
-    fprintf(stderr, "         -seqmers  <seq.meryl>     \\\n");
     fprintf(stderr, "         -readmers <read.meryl>    \\\n");
     fprintf(stderr, "         -peak     <haploid_peak>  \\\n");
-    fprintf(stderr, "         -lookup   <lookup_table>  \\\n");
+    fprintf(stderr, "         -prob     <lookup_table>  \\\n");
     fprintf(stderr, "         -vcf      <input.vcf>     \\\n");
     fprintf(stderr, "         -output   <output>        \n\n");
     fprintf(stderr, "  Predict the kmer consequences of variant calls <input.vcf> given the consensus sequence <seq.fasta>\n");
@@ -179,38 +180,67 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "\n");
     fprintf(stderr, "  Input -sequence and -vcf files can be FASTA or FASTQ; uncompressed, gz, bz2 or xz compressed\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "  Each input database can be filtered by value.  More advanced filtering\n");
+    fprintf(stderr, "  Each readmers can be filtered by value.  More advanced filtering\n");
     fprintf(stderr, "  requires a new database to be constructed using meryl.\n");
-    fprintf(stderr, "    -min   m    Ignore kmers with value below m\n");
-    fprintf(stderr, "    -max   m    Ignore kmers with value above m\n");
-    fprintf(stderr, "    -threads t  Multithreading for meryl lookup table construction, dump and hist.\n");
+    fprintf(stderr, "    -min     m     Ignore kmers with value below m\n");
+    fprintf(stderr, "    -max     m     Ignore kmers with value above m\n");
+    fprintf(stderr, "    -threads t     Multithreading for meryl lookup table construction, dump and hist.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Memory usage can be limited, within reason, by sacrificing kmer lookup\n");
     fprintf(stderr, "  speed.  If the lookup table requires more memory than allowed, the program\n");
     fprintf(stderr, "  exits with an error.\n");
-    fprintf(stderr, "    -memory1 m   Don't use more than m GB memory for loading seqmers\n");
-    fprintf(stderr, "    -memory2 m   Don't use more than m GB memory for loading readmers\n");
+    fprintf(stderr, "    -memory  m     Don't use more than m GB memory for loading mers\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    -lookup file   Optional input vector of probabilities.\n");
+    fprintf(stderr, "  For k* based evaluation and polishing, -prob or -peak is required.\n");
+    fprintf(stderr, "    -prob    file  Optional input vector of probabilities. Adjust multiplicity to copy number\n");
+    fprintf(stderr, "    -peak    m     Optional input for hard setting copy 1.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  By default, <seq.fasta>.meryl will be generated unless -seqmers is provided.\n");
+    fprintf(stderr, "    -seqmers seq.meryl  Optional input for pre-built sequence meryl db\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  Exactly one report type must be specified.\n");
     fprintf(stderr, "\n\n");
+    fprintf(stderr, "  -filter\n");
+    fprintf(stderr, "   Filter variants within distance k and their combinations by missing k-mers.\n");
+    fprintf(stderr, "   Assumes the reference (-sequence) is from a different individual.\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -vcf, and -output\n");
+    fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n");
+    fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");
+    fprintf(stderr, "             -debug     output a debug log, into <output>.THREAD_ID.debug.gz\n");
+    fprintf(stderr, "\n\n");
+    fprintf(stderr, "  -polish\n");
+    fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
+    fprintf(stderr, "   Assumes the reference (-sequence) is from the same individual.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -prob or -peak, -vcf, and -output\n");
+    fprintf(stderr, "   Optional: -comb <N>    set the max N of combinations of variants to be evaluated (default: 15)\n");
+//  fprintf(stderr, "             -keep-het    keep het calls (default: only hom calls are evaluated)\n");
+    fprintf(stderr, "             -nosplit     without this options combinations larger than N are split\n");
+    fprintf(stderr, "             -prob <file> use probabilities to adjust multiplicity to copy number (recommended)\n");
+    fprintf(stderr, "             -peak <N>    hard set copy 1 and use to infer multiplicity to compy number.\n");
+    fprintf(stderr, "                            in case both -prob and -peak are provided, -prob takes higher priority.\n");
+    fprintf(stderr, "             -debug       output a debug log, into <output>.THREAD_ID.debug.gz\n");
+    fprintf(stderr, "   Output: <output>.polish.vcf : variants chosen.\n");
+    fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.\n");
+    fprintf(stderr, "     first ALT in heterozygous alleles are usually better supported by avg. |k*|.\n");
+    fprintf(stderr, "\n\n");
     fprintf(stderr, "  -hist\n");
     fprintf(stderr, "   Generate a 0-centered k* histogram for sequences in <input.fasta>.\n");
-    fprintf(stderr, "   Positive k* values are expected collapsed copies.\n");
-    fprintf(stderr, "   Negative k* values are expected expanded  copies.\n");
-    fprintf(stderr, "   Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
-    fprintf(stderr, "   Reports QV at the end, in stderr.\n");
-    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output.\n");
-    fprintf(stderr, "   Optional: -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
+    fprintf(stderr, "     Positive k* values are expected collapsed copies.\n");
+    fprintf(stderr, "     Negative k* values are expected expanded  copies.\n");
+    fprintf(stderr, "     Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -prob or -peak, and -output.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: k* <tab> frequency\n");
+    fprintf(stderr, "           Reports QV at the end, in stderr.\n");
     fprintf(stderr, "\n\n");
     fprintf(stderr, "  -dump\n");
     fprintf(stderr, "   Dump readK, asmK, and k* per bases (k-mers) in <input.fasta>.\n");
-    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, and -output\n");
-    fprintf(stderr, "   Optional: -skipMissing will skip the missing kmer sites to be printed\n");
-    fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -peak, and -output\n");
+    fprintf(stderr, "   Optional: -skipMissing  skip the missing kmer sites to be printed\n");
+    fprintf(stderr, "             -prob <file>  use probabilities to adjust multiplicity to copy number\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*\n");
     fprintf(stderr, "      seqName    - name of the sequence this kmer is from\n");
@@ -219,23 +249,12 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "      asmK       - assembly copies as found in <seq.meryl>\n");
     fprintf(stderr, "      k*         - 0-centered k* value\n");
     fprintf(stderr, "\n\n");
-    fprintf(stderr, "  -vmer\n");
-    fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
-    fprintf(stderr, "   Required: -sequence, -seqmers, -readmers, -peak, -vcf, and -output\n");
-    fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n");
-    fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");
-    fprintf(stderr, "             -disable-kstar  only missing kmers are considered for filtering.\n");
-    //fprintf(stderr, "                        if chosen, use bcftools to compress and index, and consensus -H 1 -f <seq.fata> to polish.\n");
-    //fprintf(stderr, "                        first ALT in heterozygous alleles are better supported by avg. |k*|.\n");
-    fprintf(stderr, "             -lookup <probabilities> use probabilities to adjust multiplicity to copy number\n");
-    fprintf(stderr, "             -debug     output a debug log, into <output>.THREAD_ID.debug.gz\n");
-    fprintf(stderr, "\n");
     fprintf(stderr, "  -completeness\n");
     fprintf(stderr, "   Compute kmer completeness using expected copy numbers for all kmers.\n");
-    fprintf(stderr, "\n");    
-    fprintf(stderr, "   Output files: <output>.debug and <output>.polish.vcf\n");
-    fprintf(stderr, "    <output>.debug : some useful info for debugging.\n");
-    fprintf(stderr, "                     seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
+    fprintf(stderr, "\n\n");    
+    fprintf(stderr, "  Optional output from -debug in -filter and -polish:\n");
+    fprintf(stderr, "   <output>.THREAD_ID.debug.gz : some useful info for debugging.\n");
+    fprintf(stderr, "      seqName <tab> varMerStart <tab> varMerEnd <tab> varMerSeq <tab> score <tab> path\n");
     fprintf(stderr, "      varMerID                - unique numbering, starting from 0\n");
     fprintf(stderr, "      varMerRange             - seqName:start-end. position (0-based) of the variant (s), including sequences upstream and downstream of k-1 bp\n");
     fprintf(stderr, "      varMerSeq               - combination of variant sequence to evalute\n");
@@ -246,11 +265,8 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "      avg k*                  - average of all |k*| for non-missing kmers. -1 when all kmers are missing.\n");
     fprintf(stderr, "      avg ref-alt k*          - difference between reference and alternate average k*.\n");
     fprintf(stderr, "      delta kmer multiplicity - cumulative sum of kmer multiplicity variation. Positive values imply recovered kmers. Negative values overrepresented kmers introduced.\n");
-    fprintf(stderr, "      record          - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
+    fprintf(stderr, "      record                  - vcf record with <tab> replaced to <space>. only non-reference alleles are printed with GT being 1/1.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "    <output>.polish.vcf : variants chosen.\n");
-    //fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 2 -f <seq.fata> to polish.\n");
-    //fprintf(stderr, "     ALT alleles are favored with more support compared to the REF allele.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "\n");
 
@@ -267,9 +283,9 @@ main(int32 argc, char **argv) {
 
   //  Open read kmers, build a lookup table.
 
-  G->load_Kmetric();
-  G->load_Kmers();
-  G->open_Inputs();
+  G->load_Kmetric();  // load prob. table
+  G->load_Kmers();    // load lookup tables: asmDB and readDB
+  G->open_Inputs();   // load vcf
 
   //  Configure the sweatShop.
 
@@ -290,7 +306,7 @@ main(int32 argc, char **argv) {
     ss->setInOrderOutput(true);
   }
 
-  if (G->reportType == OP_VAR_MER) {
+  if (G->reportType == OP_POLISH || G->reportType == OP_FILTER) {
     fprintf(stderr, "-- Generate variant mers and score them.\n");
     ss = new sweatShop(loadSequence, processVariants, outputVariants);
     ss->setInOrderOutput(false);

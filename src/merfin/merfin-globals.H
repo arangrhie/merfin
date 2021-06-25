@@ -29,10 +29,10 @@
 
 #define OP_NONE       0
 #define OP_HIST       1
-#define OP_DUMP       2
-#define OP_VAR_MER    3
-#define OP_COMPL      4
-
+#define OP_COMPL      2
+#define OP_DUMP       3
+#define OP_FILTER     4
+#define OP_POLISH     5
 
 
 ////////////////////////////////////////
@@ -129,6 +129,10 @@ public:
 //
 class merfinGlobal {
 public:
+  merfinGlobal(char *const execname) {
+    execName = execname;
+  }
+
   ~merfinGlobal() {
     delete dumpOutFile;
     delete oVCF;
@@ -145,6 +149,7 @@ public:
 
 public:
   void      load_Kmetric(void);
+  void      load_Sequence(void);
   void      load_Kmers(void);
   void      open_Inputs(void);
 
@@ -169,9 +174,6 @@ public:
   //   - dumpOutFile is created on demand in the output thread.
 public:
   compressedFileWriter   *oVCF         = nullptr;
-
-
-
 
 
   //  Output data for histogram and data modes.  Data mode only uses histKasm
@@ -234,8 +236,9 @@ public:
 public:
   double                  peak          = 0;
   bool                    nosplit       = false;
-  bool                    bykstar       = true;
   uint32                  comb          = 15;
+
+  char                   *execName      = nullptr;
 };
 
 

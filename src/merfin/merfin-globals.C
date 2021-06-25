@@ -15,7 +15,7 @@
 
 #include "merfin-globals.H"
 #include "strings.H"
-
+#include <libgen.h>
 
 //  Read probabilities lookup table for 1-4 copy kmers.
 void
@@ -24,10 +24,10 @@ merfinGlobal::load_Kmetric(void) {
   if (pLookupTable == nullptr)    //  No input supplied, no lookup table to make.
     return;
 
-  fprintf(stderr, "-- Loading copy-number lookup table '%s'.\n\n", pLookupTable);
+  fprintf(stderr, "-- Loading probability table '%s'.\n\n", pLookupTable);
 
   if (fileExists(pLookupTable) == false) {
-    fprintf(stderr, "ERROR: Lookup table (-lookup) file '%s' doesn't exist!\n", pLookupTable);
+    fprintf(stderr, "ERROR: Probability table (-prob) file '%s' doesn't exist!\n", pLookupTable);
     exit(1);
   }
 
@@ -119,20 +119,26 @@ merfinGlobal::load_Kmers(void) {
     return;
   }
 
-  merylFileReader*  readDB     = new merylFileReader(readDBname);
-  merylFileReader*  asmDB      = new merylFileReader(seqDBname);
-
   double            minMem, minMemTotal = 0;
   double            optMem, optMemTotal = 0;
   bool              useOpt = false;
   bool              useMin = false;
 
+  //  Make readDB first so we know the k size
+  merylFileReader*  readDB     = new merylFileReader(readDBname);
+  
+  //  Open sequence and build seqDBname if not provided
+  load_Sequence();
+
+  fprintf(stderr, "-- Estimating required space for loading '%s'\n", readDBname);
   readLookup = new merylExactLookup();
   readLookup->estimateMemoryUsage(readDB, maxMemory, minMem, optMem, minV, maxV);
   minMemTotal += minMem;
   optMemTotal += optMem;
 
- asmLookup  = new merylExactLookup();
+  fprintf(stderr, "-- Estimating required space for loading '%s'\n", seqDBname);
+  merylFileReader*  asmDB      = new merylFileReader(seqDBname);
+  asmLookup  = new merylExactLookup();
   asmLookup->estimateMemoryUsage(asmDB, maxMemory, minMem, optMem, minV, maxV);
   minMemTotal += minMem;
   optMemTotal += optMem;
@@ -166,6 +172,42 @@ merfinGlobal::load_Kmers(void) {
   delete asmDB;
 }
 
+void
+merfinGlobal::load_Sequence(void) {
+
+  if (reportType == OP_COMPL) {
+    return;
+  }
+
+  if (seqDBname == nullptr) {
+    seqDBname = new char[FILENAME_MAX+1];
+    snprintf(seqDBname, FILENAME_MAX, "%s.meryl", basename(seqName));
+    fprintf(stderr, "-- No -seqmer given. Build sequence db as '%s'.\n", seqDBname);
+
+    //  TODO: Replace this hacky counting when meryl has proper APIs
+    char merylcount[FILENAME_MAX+1];
+    char merylpath[FILENAME_MAX+1];
+
+    if (strcmp(execName, "merfin") == 0)
+      snprintf(merylpath, FILENAME_MAX, "meryl");
+    else
+      snprintf(merylpath, FILENAME_MAX, "%s/meryl", dirname(execName));
+
+    snprintf(merylcount, FILENAME_MAX, "%s count k=%d memory=%.3f %s output %s", merylpath, kmer::merSize(), maxMemory, seqName, seqDBname);
+
+    fprintf(stderr, "%s\n\n", merylcount);
+    system(merylcount);
+    fprintf(stderr, "\n");
+
+  }
+
+  //  Open input sequence.
+  if (seqName != nullptr) {
+    fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
+    seqFile = new dnaSeqFile(seqName);
+  } 
+
+}
 
 
 
@@ -176,17 +218,10 @@ merfinGlobal::open_Inputs(void) {
     return;
   }
 
-  //  Open input sequences.
-
-  if (seqName != nullptr) {
-    fprintf(stderr, "-- Opening sequences in '%s'.\n", seqName);
-    seqFile = new dnaSeqFile(seqName);
-  }
-
   //  Open VCF input.  This is only needed for reportType OP_VAR_MER.
   //  main() checks that we have a vcfName.
 
-  if (reportType == OP_VAR_MER) {
+  if (reportType == OP_FILTER || reportType == OP_POLISH) {
     fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
     inVcf = new vcfFile(vcfName);
 

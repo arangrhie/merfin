@@ -278,14 +278,14 @@ processVariants(void *G, void *T, void *S) {
     //  Generate output VCFs.
 
     // Experimental: output vcf according to k*
-    if (g->bykstar) {
+    if (g->reportType == OP_POLISH) {
       //fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
       s->result += seqMer->bestVariant();
     }
 
     // Filter vcf and print as it was in the original vcf, conservatively
     else {
-      vector<vcfRecord*> records = seqMer->bestVariantOriginalVCF();
+      vector<vcfRecord*> records = seqMer->bestFilter();
 
       for (uint64 i = 0; i < records.size(); i++)
         //records[i]->save(t->oVcf);
@@ -316,7 +316,7 @@ outputVariants(void *G, void *S) {
   if (g->oVCF == nullptr) {
     char  name[FILENAME_MAX+1];
 
-		if (g->bykstar)
+		if (g->reportType == OP_POLISH)
 	    snprintf(name, FILENAME_MAX, "%s.polish.vcf", g->outName);
 		else
 	    snprintf(name, FILENAME_MAX, "%s.filter.vcf", g->outName);

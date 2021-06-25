@@ -84,6 +84,17 @@ varMer::score(merfinGlobal *g) {
         g->getK(kiter.fmer(), kiter.rmer(), readK, asmK, prob);
         //fprintf(stderr, "[ DEBUG ] :: idx %u -- readK=%.0f , asmK=%.0f\n", idx, readK, asmK);
       }
+
+      if (readK == 0) {
+        numM++;
+      }
+    
+      //  We only use the num missings in -filter mode
+      if (g->reportType == OP_FILTER) {
+        idx++;
+        continue;
+      }
+
       // store difference in kmer count accounting for uncertainty in the estimate of readK
       oDeltak = abs(readK - asmK) * prob;
 
@@ -104,7 +115,6 @@ varMer::score(merfinGlobal *g) {
       //  re-define k* given rounded readK and asmK, in absolute values
       if (readK == 0) {
         kMetric = -1;  // use 0 if we are using non-abs k*
-        numM++;
 
       } else if (readK > asmK) {
         kMetric = readK / asmK - 1;
@@ -136,40 +146,40 @@ varMer::score(merfinGlobal *g) {
 }
 
 /***
- * Get the best variant combination, but print the original vcf 
+ * Get the best variant combination in -filter mode, but print the original vcf 
  ***/
 vector<vcfRecord*>
-varMer::bestVariantOriginalVCF() {
+varMer::bestFilter() {
   uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
   vector<int> idxs;
-  vector<vcfRecord*> records;	// empty vector with no records
+  vector<vcfRecord*> records;      // empty vector with no records
 
   for ( int ii = 0; ii < numMs.size(); ii++ ) {
 
-		//  ignore when all kmers are 'missings'
-		if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
+    //  ignore when all kmers are 'missings'
+    if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
 
-		// 1) path with no missings? add to report
-		if ( numMs.at(ii) == 0 ) {
-			idxs.push_back(ii);
-			numMissing = 0;
-		}
+    // 1) path with no missings? add to report
+    if ( numMs.at(ii) == 0 ) {
+      idxs.push_back(ii);
+      numMissing = 0;
+    }
 
-		// 2) lowest num. missings? add to report
-		//    only if no paths satisfying 1) are found
-		if ( numMs.at(ii) < numMissing ) {
-			numMissing = numMs.at(ii);
-		  idxs.clear();
-		  idxs.push_back(ii);
+    // 2) lowest num. missings? add to report
+    //    only if no paths satisfying 1) are found
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
 
-		} else if ( numMs.at(ii) == numMissing ) {
-	    //  has the same numMissing
-		  idxs.push_back(ii);
-		} // else : ignore
-		
+    } else if ( numMs.at(ii) == numMissing ) {
+      //  has the same numMissing
+      idxs.push_back(ii);
+    } // else : ignore
+
   }
 
-  //  ignore if all kmers creats only missings
+  //  ignore if all kmers only increase missing kmers
   if ( idxs.size() == 0 ) return records;
 
   //  report all the rest
@@ -187,7 +197,6 @@ varMer::bestVariantOriginalVCF() {
   for (list<int>::iterator it=gtIdxs.begin(); it!=gtIdxs.end(); ++it)
     records.push_back(posGt->_gts[*it]->_record);
 
-  // no best?
   return records;
 }
 

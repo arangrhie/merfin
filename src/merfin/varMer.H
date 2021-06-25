@@ -41,7 +41,7 @@ public:
 
 public:
   string  bestVariant();
-  vector<vcfRecord*>  bestVariantOriginalVCF();
+  vector<vcfRecord*>  bestFilter();
 
 private:
   vector<vcfRecord*>  getOriginalVCF(int idx);
