@@ -18,7 +18,7 @@ During installation, `meryl` and `meryl-utility` are cloned as submodules, and `
 
 ## Running Merfin
 
-A more detailed WIKI can be found [here](https://github.com/arangrhie/merfin/wiki/Best-practices-for-Merfin). Please read it through before running Merfin.
+A more detailed WIKI with examples can be found [here](https://github.com/arangrhie/merfin/wiki/Best-practices-for-Merfin). Please read it through before running Merfin.
 
 
 Merfin can be used to:
