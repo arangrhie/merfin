@@ -160,6 +160,11 @@ main(int32 argc, char **argv) {
     if (G->peak == 0)  err.push_back("No haploid peak (-peak) supplied.\n");
   }
 
+  if (G->reportType == OP_COMPL) {
+    if (G->seqName == nullptr &&
+        G->seqDBname == nullptr) err.push_back("No sequence meryl database (-seqmers) nor sequence (-sequence) supplied.\n");
+  }
+
   if  (G->reportType == OP_NONE) {
     err.push_back("No report type (-filter, -polish, -hist, -dump, -completeness) supplied.\n");
   }
@@ -255,6 +260,11 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "\n\n");
     fprintf(stderr, "  -completeness\n");
     fprintf(stderr, "   Compute kmer completeness using expected copy numbers for all kmers.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Required: -seqmers (or -sequence), -readmers, -peak\n");
+    fprintf(stderr, "   Optional: -prob <file>  use probabilities to adjust multiplicity to copy number (recommended)\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Output: total kmers in reads, number of kmers under the expected copy number, and completeness\n");
     fprintf(stderr, "\n\n");
     fprintf(stderr, "  Optional output from -debug in -filter and -polish:\n");
     fprintf(stderr, "   <output>.THREAD_ID.debug.gz : some useful info for debugging.\n");

@@ -114,11 +114,6 @@ merfinGlobal::getK(kmer     fmer,
 void
 merfinGlobal::load_Kmers(void) {
 
-  if (reportType == OP_COMPL) {
-    fprintf(stderr, "-- Not loading kmers; not necessary for -completeness mode.\n");
-    return;
-  }
-
   double            minMem, minMemTotal = 0;
   double            optMem, optMemTotal = 0;
   bool              useOpt = false;
@@ -174,10 +169,6 @@ merfinGlobal::load_Kmers(void) {
 
 void
 merfinGlobal::load_Sequence(void) {
-
-  if (reportType == OP_COMPL) {
-    return;
-  }
 
   if (seqDBname == nullptr) {
     seqDBname = new char[FILENAME_MAX+1];
