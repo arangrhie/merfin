@@ -18,6 +18,9 @@ During installation, `meryl` and `meryl-utility` are cloned as submodules, and `
 
 ## Running Merfin
 
+A more detailed WIKI can be found [here](https://github.com/arangrhie/merfin/wiki/Best-practices-for-Merfin). Please read it through before running Merfin.
+
+
 Merfin can be used to:
 * filter any variant calls for accurate genotyping (`-filter`: reference is from another individual, i.e. GRCh38)
 * assess collapsed or duplicated region of the assembly (`-hist` or `-dump`)
@@ -91,9 +94,6 @@ bcftools consensus $merfin_output.polish.vcf.gz -f assembly.fasta -H 1 > polishe
 
 Merfin is still under active development. Feel free to reach out to us if you have any question.
 
-### Best practices
-
-A more detailed wiki will be posted soon!
 
 ### Helper
 
