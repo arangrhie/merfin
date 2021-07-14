@@ -157,7 +157,7 @@ main(int32 argc, char **argv) {
   }
 
   if (G->reportType != OP_FILTER) {
-    if (G->pLookupTable == nullptr && G->peak == 0)  err.push_back("No probability vector (-prob) nor haploid peak (-peak) supplied.\n");
+    if (G->peak == 0)  err.push_back("No haploid peak (-peak) supplied.\n");
   }
 
   if  (G->reportType == OP_NONE) {
@@ -191,9 +191,11 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "  exits with an error.\n");
     fprintf(stderr, "    -memory  m     Don't use more than m GB memory for loading mers\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "  For k* based evaluation and polishing, -prob or -peak is required.\n");
+    fprintf(stderr, "  For k* based evaluation and polishing, -peak is required with optional -prob.\n");
+    fprintf(stderr, "    -peak    m     Required input to hard set copy 1 and infer multiplicity to copy number (recommended).\n");
     fprintf(stderr, "    -prob    file  Optional input vector of probabilities. Adjust multiplicity to copy number\n");
-    fprintf(stderr, "    -peak    m     Optional input for hard setting copy 1.\n");
+    fprintf(stderr, "                   in case both -prob and -peak are provided, -prob takes higher priority\n");
+    fprintf(stderr, "                   than -peak for multiplicity listed in the vector table.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "  By default, <seq.fasta>.meryl will be generated unless -seqmers is provided.\n");
     fprintf(stderr, "    -seqmers seq.meryl  Optional input for pre-built sequence meryl db\n");
@@ -207,19 +209,20 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "   Optional: -comb <N>  set the max N of combinations of variants to be evaluated (default: 15)\n");
     fprintf(stderr, "             -nosplit   without this options combinations larger than N are split\n");
     fprintf(stderr, "             -debug     output a debug log, into <output>.THREAD_ID.debug.gz\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "   Output: <output>.filter.vcf : variants chosen.\n");
     fprintf(stderr, "\n\n");
     fprintf(stderr, "  -polish\n");
     fprintf(stderr, "   Score each variant, or variants within distance k and their combinations by k*.\n");
     fprintf(stderr, "   Assumes the reference (-sequence) is from the same individual.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "   Required: -sequence, -readmers, -prob or -peak, -vcf, and -output\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -peak, -vcf, and -output\n");
     fprintf(stderr, "   Optional: -comb <N>    set the max N of combinations of variants to be evaluated (default: 15)\n");
 //  fprintf(stderr, "             -keep-het    keep het calls (default: only hom calls are evaluated)\n");
     fprintf(stderr, "             -nosplit     without this options combinations larger than N are split\n");
     fprintf(stderr, "             -prob <file> use probabilities to adjust multiplicity to copy number (recommended)\n");
-    fprintf(stderr, "             -peak <N>    hard set copy 1 and use to infer multiplicity to compy number.\n");
-    fprintf(stderr, "                            in case both -prob and -peak are provided, -prob takes higher priority.\n");
     fprintf(stderr, "             -debug       output a debug log, into <output>.THREAD_ID.debug.gz\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "   Output: <output>.polish.vcf : variants chosen.\n");
     fprintf(stderr, "     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.\n");
     fprintf(stderr, "     first ALT in heterozygous alleles are usually better supported by avg. |k*|.\n");
@@ -230,7 +233,8 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "     Negative k* values are expected expanded  copies.\n");
     fprintf(stderr, "     Closer to 0 means the expected and found k-mers are well balenced, 1:1.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "   Required: -sequence, -readmers, -prob or -peak, and -output.\n");
+    fprintf(stderr, "   Required: -sequence, -readmers, -peak, and -output.\n");
+    fprintf(stderr, "   Optional: -prob <file>  use probabilities to adjust multiplicity to copy number (recommended)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: k* <tab> frequency\n");
     fprintf(stderr, "           Reports QV at the end, in stderr.\n");
@@ -240,7 +244,7 @@ main(int32 argc, char **argv) {
     fprintf(stderr, "\n");
     fprintf(stderr, "   Required: -sequence, -readmers, -peak, and -output\n");
     fprintf(stderr, "   Optional: -skipMissing  skip the missing kmer sites to be printed\n");
-    fprintf(stderr, "             -prob <file>  use probabilities to adjust multiplicity to copy number\n");
+    fprintf(stderr, "             -prob <file>  use probabilities to adjust multiplicity to copy number (recommended)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "   Output: seqName <tab> seqPos <tab> readK <tab> asmK <tab> k*\n");
     fprintf(stderr, "      seqName    - name of the sequence this kmer is from\n");
