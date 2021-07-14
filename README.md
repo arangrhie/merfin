@@ -194,6 +194,11 @@ usage: merfin <report-type>        \
   -completeness
    Compute kmer completeness using expected copy numbers for all kmers.
 
+   Required: -seqmers (or -sequence), -readmers, -peak
+   Optional: -prob <file>  use probabilities to adjust multiplicity to copy number (recommended)
+
+   Output: total kmers in reads, number of kmers under the expected copy number, and completeness
+
 
   Optional output from -debug in -filter and -polish:
    <output>.THREAD_ID.debug.gz : some useful info for debugging.
