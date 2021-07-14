@@ -14,6 +14,8 @@ make -j 12
 
 During installation, `meryl` and `meryl-utility` are cloned as submodules, and `meryl`, `merfin` will be installed under `merfin/build/bin/`.
 
+* Recommended: [GenomeScope 2.0](https://github.com/tbenavi1/genomescope2.0) for polishing and assembly evaluation
+
 ## Running Merfin
 
 Merfin can be used to:
@@ -221,3 +223,7 @@ This code was developed as part of the T2T consortium chm13-polishing working gr
 * Brian Walenz
 * Sergey Koren
 * Adam Phillippy
+
+With special thanks for their support to integrate `--fitted_hist` option in GenomeScope 2.0:
+* Rhyker Ranallo-Benavidez
+* Michael Schatz
