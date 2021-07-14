@@ -152,7 +152,7 @@ main(int32 argc, char **argv) {
     if (G->outName == nullptr)   err.push_back("No output (-output) supplied.\n");
   }
 
-  if  (G->reportType == OP_POLISH || OP_FILTER) {
+  if  (G->reportType == OP_POLISH || G->reportType == OP_FILTER) {
     if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -filter or -polish.\n");
   }
 
