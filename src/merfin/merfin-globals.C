@@ -184,7 +184,8 @@ merfinGlobal::load_Sequence(void) {
     else
       snprintf(merylpath, FILENAME_MAX, "%s/meryl", dirname(execName));
 
-    snprintf(merylcount, FILENAME_MAX, "%s count k=%d memory=%.3f %s output %s", merylpath, kmer::merSize(), maxMemory, seqName, seqDBname);
+    snprintf(merylcount, FILENAME_MAX, "%s threads=%d count k=%d memory=%.3f %s output %s",
+             merylpath, threads, kmer::merSize(), maxMemory, seqName, seqDBname);
 
     fprintf(stderr, "%s\n\n", merylcount);
     system(merylcount);
