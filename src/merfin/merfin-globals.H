@@ -226,7 +226,7 @@ public:
 
   //  Run-time parameters.
 public:
-  uint32                  threads       = omp_get_max_threads();
+  uint32                  threads       = getMaxThreadsAllowed();
   double                  maxMemory     = getMaxMemoryAllowed() / 1024.0 / 1024.0 / 1024.0;
 
   uint32                  reportType    = OP_NONE;

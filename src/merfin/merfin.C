@@ -103,7 +103,7 @@ main(int32 argc, char **argv) {
       G->maxV = strtouint64(argv[++arg]);
 
     } else if (strcmp(argv[arg], "-threads") == 0) {
-      G->threads = strtouint32(argv[++arg]);
+      G->threads = setNumThreads(argv[++arg]);   //  See comment below about setNumThreads().
 
     } else if (strcmp(argv[arg], "-memory") == 0) {
       G->maxMemory = strtodouble(argv[++arg]);
@@ -295,10 +295,6 @@ main(int32 argc, char **argv) {
     exit(1);
   }
 
-
-  omp_set_num_threads(G->threads);
-
-
   //  Open read kmers, build a lookup table.
 
   G->load_Kmetric();  // load prob. table
@@ -310,7 +306,11 @@ main(int32 argc, char **argv) {
   sweatShop       *ss = nullptr;
   merfinThrData   *td = new merfinThrData [G->threads];
 
-  //  Check report type
+  //  Check report type.
+  //
+  //  computeCompleteness() uses OpenMP (and so the thread limit is set by
+  //  setNumThreads() above) while the others use the sweatShop (and so the
+  //  thread limit is set by setNumberOfWorkers() below).
 
   if (G->reportType == OP_HIST) {
     fprintf(stderr, "-- Generate histogram of the k* metric to '%s'.\n", G->outName);
