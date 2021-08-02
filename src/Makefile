@@ -388,8 +388,8 @@ ifeq "$(strip ${DESTDIR})" ""
   BUILD_DIR    := $(realpath ..)/build/obj
   TARGET_DIR   := $(realpath ..)/build
 else
-  BUILD_DIR    := $(DESTDIR)/merfin/build/obj
-  TARGET_DIR   := $(DESTDIR)/merfin/build
+  BUILD_DIR    := $(DESTDIR)/$(MODULE)/build/obj
+  TARGET_DIR   := $(DESTDIR)/$(MODULE)/build
 endif
 
 #
@@ -437,6 +437,15 @@ ifeq ($(origin CXXFLAGS), undefined)
   CXXFLAGS += -Wno-deprecated-declarations
   CXXFLAGS += -Wno-format-truncation
   CXXFLAGS += -std=c++11
+
+  CFLAGS += -Wall -Wextra -Wformat
+  CFLAGS += -Wno-char-subscripts
+  CFLAGS += -Wno-sign-compare
+  CFLAGS += -Wno-unused-function
+  CFLAGS += -Wno-unused-parameter
+  CFLAGS += -Wno-unused-variable
+  CFLAGS += -Wno-deprecated-declarations
+  CFLAGS += -Wno-format-truncation
 else
   CXXFLAGSUSER := ${CXXFLAGS}
 endif
@@ -457,47 +466,30 @@ endif
 
 #  The default MacOS compiler - even as of 10.13 High Sierra - doesn't support OpenMP.
 #  Clang 6.0 installed from MacPorts supports OpenMP, but fails to compile Canu.
-#  So, we require gcc7 (from MacPorts) or gcc8 (from hommebrew).
+#  So, we require gcc9 (from MacPorts) or gcc8 (from hommebrew).
 #
 #  If from MacPorts:
-#    port install gcc7
-#    port select gcc mp-gcc7
+#    port install gcc9
+#    port select gcc mp-gcc9
 #
 #  If CC is set to 'cc', the GNU make default, we'll automagically search for other
-#  versions and use those if found, preferring gcc7 over gcc8.
+#  versions and use those if found.
 #
-#  There' definitely a clever way to do this with 'foreach', but my Make is lacking.
-#
+
+define TEST_COMPILER
+  ifeq ($${CC}, cc)
+    CCTEST  := $$(shell echo `which gcc-${1}`)
+    CXXTEST := $$(shell echo `which g++-${1}`)
+
+    ifdef CXXTEST
+      CC  := $${CCTEST}
+      CXX := $${CXXTEST}
+    endif
+  endif
+endef
+
 ifeq (${OSTYPE}, Darwin)
-  ifeq ($(CC), cc)
-    CC7    := $(shell echo `which gcc-mp-7`)
-    CXX7   := $(shell echo `which g++-mp-7`)
-
-    ifdef CXX7
-      CC  := $(CC7)
-      CXX := $(CXX7)
-    endif
-  endif
-
-  ifeq ($(CC), cc)
-    CC8    := $(shell echo `which gcc-7`)
-	  CXX8   := $(shell echo `which g++-7`)
-
-    ifdef CXX8
-      CC  := $(CC8)
-      CXX := $(CXX8)
-    endif
-  endif
-
-  ifeq ($(CC), cc)
-    CC8    := $(shell echo `which gcc-8`)
-	  CXX8   := $(shell echo `which g++-8`)
-
-    ifdef CXX8
-      CC  := $(CC8)
-      CXX := $(CXX8)
-    endif
-  endif
+  $(foreach suffix,mp-9 9  mp-8 8  mp-7 7,$(eval $(call TEST_COMPILER,${suffix})))
 
   ifneq ($(shell echo `$(CXX) --version 2>&1 | grep -c clang`), 0)
      CPATH := $(shell echo `which $(CXX)`)
@@ -638,13 +630,13 @@ endif
 #  No backtrace support.
 #CXXFLAGS   += -DNOBACKTRACE
 
-#  But, if we we have an old GCC, stack tracing support isn't there.
-#  The second test is because gcc7 (and only gcc7) reports '7' for -dumpversion.
+#  But, if we we have an old GCC, stack tracing support isn't there.  The
+#  second test is because gcc7 (and only gcc7) reports '7' for -dumpversion.
 
 GXX_45 := $(shell expr `${CXX} -dumpversion     | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40500)
 GXX_VV := $(shell ${CXX} -dumpversion)
 
-ifeq (${GXX_VV}, 7)
+ifneq (,$(filter ${GXX_VV}, 7 8 9))
 GXX_45 := $(shell expr `${CXX} -dumpfullversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40500)
 GXX_VV := $(shell ${CXX} -dumpfullversion)
 endif
@@ -679,7 +671,7 @@ INCDIRS := $(addprefix -I,$(call CANONICAL_PATH,${INCDIRS}))
 all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS})
 	@echo ""
 	@echo "Success!"
-	@echo "merfin installed in ${TARGET_DIR}/bin/merfin"
+	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
 	@echo ""
 
 # Add a new target rule for each user-defined target.
@@ -711,7 +703,7 @@ $(foreach TGT,${ALL_TGTS},\
 #  Makefile processed.  Regenerate the version number file, make some
 #  directories, and report that we're starting the build.
 
-$(eval $(shell utility/scripts/version_update.pl merfin utility/src/utility/version.H))
+$(eval $(shell utility/scripts/version_update.pl $(MODULE) utility/src/utility/version.H))
 
 $(shell mkdir -p ${TARGET_DIR}/bin)
 
