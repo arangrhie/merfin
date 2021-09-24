@@ -73,6 +73,8 @@ int
 main(int32 argc, char **argv) {
   merfinGlobal  *G = new merfinGlobal(argv[0]);
 
+  argc = AS_configure(argc, argv);
+
   std::vector<const char *>  err;
   for (int32 arg=1; arg < argc; arg++) {
     if        (strcmp(argv[arg], "-sequence") == 0) {
