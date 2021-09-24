@@ -703,7 +703,7 @@ $(foreach TGT,${ALL_TGTS},\
 #  Makefile processed.  Regenerate the version number file, make some
 #  directories, and report that we're starting the build.
 
-$(eval $(shell utility/scripts/version_update.pl $(MODULE) utility/src/utility/version.H))
+$(eval $(shell ../scripts/version_update.pl $(MODULE) utility/src/utility/version.H))
 
 $(shell mkdir -p ${TARGET_DIR}/bin)
 
