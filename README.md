@@ -13,12 +13,13 @@ make -j 12
 ```
 
 During installation, `meryl` and `meryl-utility` are cloned as submodules, and `meryl`, `merfin` will be installed under `merfin/build/bin/`.
+Installation will take less than a minute on a typical computer.
 
 * Recommended: [GenomeScope 2.0](https://github.com/tbenavi1/genomescope2.0) for polishing and assembly evaluation
 
 ## Running Merfin
 
-A more detailed WIKI with examples can be found [here](https://github.com/arangrhie/merfin/wiki/Best-practices-for-Merfin). Please read it through before running Merfin.
+_[More details with examples and expected run times can be found in the WIKI](https://github.com/arangrhie/merfin/wiki/Best-practices-for-Merfin). Please read it through before running Merfin._
 
 
 Merfin can be used to:
