@@ -113,11 +113,7 @@ merfinGlobal::getK(kmer     fmer,
 
 void
 merfinGlobal::load_Kmers(void) {
-
-  double            minMem, minMemTotal = 0;
-  double            optMem, optMemTotal = 0;
-  bool              useOpt = false;
-  bool              useMin = false;
+  double            reqMemory = 0.0;
 
   //  Make readDB first so we know the k size
   merylFileReader*  readDB     = new merylFileReader(readDBname);
@@ -125,32 +121,31 @@ merfinGlobal::load_Kmers(void) {
   //  Open sequence and build seqDBname if not provided
   load_Sequence();
 
+  //  Since estimateMemoryUsage() is now including space for temporary
+  //  buffers that are used only when loading, this estimate is significantly
+  //  too large for small datasets.  If table1 and table2 need only 5 GB
+  //  memory (each), the estimate for each will also include several GB for
+  //  buffers (based on the number of threads); 16 threads = 8 GB buffers.
+  //  So while the data needs 10 GB memory, meryl claims it needs 2x 13 GB =
+  //  26 GB memory.  Since the tables are loaded sequentially, it really only
+  //  needs 13 - 8 + 13 - 8 = 18 GB peak, 10 GB final.
+#warning estimate is too high
+
   fprintf(stderr, "-- Estimating required space for loading '%s'\n", readDBname);
   readLookup = new merylExactLookup();
-  readLookup->estimateMemoryUsage(readDB, maxMemory, minMem, optMem, minV, maxV);
-  minMemTotal += minMem;
-  optMemTotal += optMem;
+  reqMemory += readLookup->estimateMemoryUsage(readDB, maxMemory, 0, minV, maxV);
 
   fprintf(stderr, "-- Estimating required space for loading '%s'\n", seqDBname);
   merylFileReader*  asmDB      = new merylFileReader(seqDBname);
   asmLookup  = new merylExactLookup();
-  asmLookup->estimateMemoryUsage(asmDB, maxMemory, minMem, optMem, minV, maxV);
-  minMemTotal += minMem;
-  optMemTotal += optMem;
-
-  if      (optMemTotal <= maxMemory)
-    useOpt = true;
-  else if (minMemTotal <= maxMemory)
-    useMin = true;
+  reqMemory += asmLookup->estimateMemoryUsage(asmDB, maxMemory, 0);
 
   fprintf(stderr, "--\n");
-  fprintf(stderr, "-- Minimal memory needed: %.3f GB%s\n", minMemTotal, (useMin) ? "  enabled" : "");
-  fprintf(stderr, "-- Optimal memory needed: %.3f GB%s\n", optMemTotal, (useOpt) ? "  enabled" : "");
-  fprintf(stderr, "-- Memory limit           %.3f GB\n",   maxMemory);
+  fprintf(stderr, "-- Memory needed: %.3f GB\n", reqMemory);
+  fprintf(stderr, "-- Memory limit:  %.3f GB\n", maxMemory);
   fprintf(stderr, "--\n");
 
-  if ((useMin == false) &&
-      (useOpt == false)) {
+  if (reqMemory > maxMemory) {
     fprintf(stderr, "\n");
     fprintf(stderr, "Not enough memory to load databases.  Increase -memory.\n");
     fprintf(stderr, "\n");
@@ -158,10 +153,10 @@ merfinGlobal::load_Kmers(void) {
   }
 
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", readDBname);
-  readLookup->load(readDB, maxMemory, useMin, useOpt, minV, maxV);
+  readLookup->load(readDB, maxMemory, 0, minV, maxV);
 
   fprintf(stderr, "-- Loading kmers from '%s' into lookup table.\n", seqDBname);
-  asmLookup-> load(asmDB,  maxMemory, useMin, useOpt);
+  asmLookup-> load(asmDB,  maxMemory, 0);
 
   delete readDB;    //  Not needed anymore.
   delete asmDB;
