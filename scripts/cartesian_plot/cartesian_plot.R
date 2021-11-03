@@ -23,7 +23,12 @@ kmers <- read.csv(args[1], header = FALSE, sep = "\t", na.strings="NA")
 
 kmers <- kmers %>% mutate(missing = if_else(is.na(V2) | is.na(V3), 'missing', 'non_missing'))
 
+missing <- kmers[rowSums(is.na(kmers)) > 0,]
+
 kmers[is.na(kmers)] <- 0
+
+mx <- max(missing[1])
+roundUp <- function(x) 10^ceiling(log10(x))
 
 g<-ggplot(kmers%>%arrange(desc(missing)), aes(x=V2, y=V3)) + 
   #stat_density_2d(aes(fill = ..level..), geom="polygon", n = 200) +
@@ -57,7 +62,7 @@ g<-ggplot(kmers%>%arrange(desc(missing)), aes(x=V2, y=V3)) +
   xlim(c(-25,25))+
   ylim(c(-25,25))+
   guides(fill = guide_colourbar(barwidth = 1.5, barheight = 100))+
-  scale_size(range = c(0,20), breaks=c(100,1000,5000))
+  scale_size(range=c(0,20), breaks=roundUp(c(mx/1000,mx/100,mx/10)))
 #scale_color_manual(breaks = c("missing", "non_missing"),
 #                   values=c("red", "black"))
 
