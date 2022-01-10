@@ -277,10 +277,14 @@ processVariants(void *G, void *T, void *S) {
 
     //  Generate output VCFs.
 
-    // Experimental: output vcf according to k*
+    // Best: output vcf according to k*
     if (g->reportType == OP_POLISH) {
       //fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
       s->result += seqMer->bestVariant();
+
+    // Better: output vcf for reducing missing kmers only
+    } else if (g->reportType == OP_BETTER) {
+      s->result += seqMer->betterVariant();
     }
 
     // Filter vcf and print as it was in the original vcf, conservatively

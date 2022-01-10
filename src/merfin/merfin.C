@@ -116,6 +116,9 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-filter") == 0) {
       G->reportType = OP_FILTER;
 
+    } else if (strcmp(argv[arg], "-better") == 0) {
+      G->reportType = OP_BETTER;
+
     } else if (strcmp(argv[arg], "-polish") == 0) {
       G->reportType = OP_POLISH;
 
@@ -149,12 +152,13 @@ main(int32 argc, char **argv) {
   if ((G->reportType == OP_HIST)   ||
       (G->reportType == OP_DUMP)   ||
       (G->reportType == OP_POLISH) ||
+      (G->reportType == OP_BETTER) ||
       (G->reportType == OP_FILTER)) {
     if (G->seqName == nullptr)   err.push_back("No input sequences (-sequence) supplied.\n");
     if (G->outName == nullptr)   err.push_back("No output (-output) supplied.\n");
   }
 
-  if  (G->reportType == OP_POLISH || G->reportType == OP_FILTER) {
+  if  (G->reportType == OP_POLISH || G->reportType == OP_FILTER || G->reportType == OP_BETTER) {
     if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -filter or -polish.\n");
   }
 

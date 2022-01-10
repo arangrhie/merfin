@@ -208,7 +208,7 @@ merfinGlobal::open_Inputs(void) {
   //  Open VCF input.  This is only needed for reportType OP_VAR_MER.
   //  main() checks that we have a vcfName.
 
-  if (reportType == OP_FILTER || reportType == OP_POLISH) {
+  if (reportType == OP_FILTER || reportType == OP_POLISH || reportType == OP_BETTER) {
     fprintf(stderr, "-- Opening vcf file '%s'.\n", vcfName);
     inVcf = new vcfFile(vcfName);
 

@@ -33,7 +33,7 @@
 #define OP_DUMP       3
 #define OP_FILTER     4
 #define OP_POLISH     5
-
+#define OP_BETTER     6
 
 ////////////////////////////////////////
 //

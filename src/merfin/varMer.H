@@ -41,6 +41,7 @@ public:
 
 public:
   string  bestVariant();
+  string  betterVariant(); // Report variants only if it reduces num. missings; regardless of k*
   vector<vcfRecord*>  bestFilter();
 
 private:

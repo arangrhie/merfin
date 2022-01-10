@@ -155,7 +155,6 @@ varMer::bestFilter() {
   vector<vcfRecord*> records;      // empty vector with no records
 
   for ( int ii = 0; ii < numMs.size(); ii++ ) {
-
     //  ignore when all kmers are 'missings'
     if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
 
@@ -198,6 +197,65 @@ varMer::bestFilter() {
     records.push_back(posGt->_gts[*it]->_record);
 
   return records;
+}
+
+/***
+ * Get the better variant, report HOM only if the variant reduces num. missing kmers
+ ***/
+string
+varMer::betterVariant() {
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+
+  //  add reference path as default
+  if ( numMs.size() == 0 ) return "";
+  uint32 refMissing = numMs.at(0);
+  numMissing = refMissing;
+  
+  //  only add the variant if the numMs are less or equal to the ref path
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+
+    // lowest num. missings? add to report
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing && numMs.at(ii) < refMissing ) {
+      //  has the same numMissing, less than refMissing
+      idxs.push_back(ii);
+
+    } // else : ignore
+
+  }
+
+  //  ignore if all kmers only increase missing kmers
+  if ( idxs.size() == 0 ) return "";
+
+  list<int> gtIdxs;
+  int idx = idxs.at(0); // path index
+  //  report only one best
+  //  select the longest alt if there are multiple bests
+  //
+  //  1) only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+  // 2) multiple combinations with equal num. of missings
+  else {
+    //  get the path idx with longest seq length
+    uint32 seqLenMax = seqs.at(idx).size();
+    for ( int ii = 1; ii < idxs.size(); ii++ ) {
+      uint32 seqLen  = seqs.at(idxs.at(ii)).length();
+      if ( seqLen > seqLenMax ) {
+        seqLenMax = seqLen;
+        idx = idxs.at(ii);
+      }
+    }
+    // return records as HOM
+    return getHomRecord(idx);
+  }
 }
 
 string
