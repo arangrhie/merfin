@@ -233,3 +233,6 @@ This code was developed as part of the T2T consortium chm13-polishing working gr
 With special thanks for their support to integrate `--fitted_hist` option in GenomeScope 2.0:
 * Rhyker Ranallo-Benavidez
 * Michael Schatz
+
+## Citation
+Formenti, G., Rhie, A., Walenz, B.P. et al. Merfin: improved variant filtering, assembly evaluation and polishing via k-mer validation. Nat Methods (2022). https://doi.org/10.1038/s41592-022-01445-y
