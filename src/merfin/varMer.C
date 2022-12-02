@@ -69,7 +69,7 @@ varMer::score(merfinGlobal *g) {
     seq    = seqs.at(ii);
     m_ks.clear();
     m_dks.clear();
-    //  fprintf(stderr, "\n[ DEBUG ]:: score %d th combination :: %s:%u-%u\t%s\n", ii, posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
+    // fprintf(stderr, "\n[ DEBUG ]:: score %d th combination :: %s:%u-%u\t%s\n", ii, posGt->_chr, posGt->_rStart, posGt->_rEnd, seq.c_str());
 
     idx = 0;
 
@@ -128,7 +128,6 @@ varMer::score(merfinGlobal *g) {
       // store new k*
       m_ks.push_back(kMetric);
       // fprintf(stderr, "[ DEBUG ] :: push_back kMetric for idx: %u. Kr: %.3f Ka: %.0f K*: %.3f\n\n", idx, readK, asmK, kMetric);
-
       // store the delta k* when the variant is applied
       m_dks.push_back(oDeltak-nDeltak);
       
@@ -155,7 +154,6 @@ varMer::bestFilter() {
   vector<vcfRecord*> records;      // empty vector with no records
 
   for ( int ii = 0; ii < numMs.size(); ii++ ) {
-
     //  ignore when all kmers are 'missings'
     if ( numMs.at(ii)  == seqs.at(ii).size() - kmer::merSize() + 1)  continue;
 
@@ -200,6 +198,205 @@ varMer::bestFilter() {
   return records;
 }
 
+/***
+ * Get the better variant, report HOM only if the variant reduces num. missing kmers
+ ***/
+string
+varMer::betterVariant() {
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+  //  fprintf(stderr, "[ DEBUG ] :: Better mode called\n");
+
+  //  add reference path as default
+  if ( numMs.size() == 0 ) return "";
+  uint32 refMissing = numMs.at(0);
+  numMissing = refMissing;
+  
+  //  only add the variant if the numMs are less or equal to the ref path
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+
+    // lowest num. missings? add to report
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing && numMs.at(ii) < refMissing ) {
+      //  has the same numMissing, less than refMissing
+      idxs.push_back(ii);
+
+    } // else : ignore
+
+  }
+
+  //  ignore if all kmers only increase missing kmers
+  if ( idxs.size() == 0 ) return "";
+
+  int idx = idxs.at(0); // path index
+  //  report only one best
+  //  select the longest alt if there are multiple bests
+  //
+  //  1) only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+  // 2) multiple combinations with equal num. of missings
+  else {
+    //  get the path idx with longest seq length
+    uint32 seqLenMax = seqs.at(idx).size();
+    for ( int ii = 1; ii < idxs.size(); ii++ ) {
+      uint32 seqLen  = seqs.at(idxs.at(ii)).length();
+      if ( seqLen > seqLenMax ) {
+        seqLenMax = seqLen;
+        idx = idxs.at(ii);
+      }
+    }
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+}
+
+string
+varMer::strictPolish() {
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+
+  //  add reference path as default
+  if ( numMs.size() == 0 ) return "";
+  uint32 refMissing = numMs.at(0);
+  numMissing = refMissing;
+  
+  //  only add the variant if the numMs are less or equal to the ref path
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+
+    // lowest num. missings? add to report
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing && numMs.at(ii) < refMissing ) {
+      //  has the same numMissing, less than refMissing
+      idxs.push_back(ii);
+
+    } // else : ignore
+
+  }
+
+  //  ignore if all kmers only increase missing kmers
+  if ( idxs.size() == 0 ) return "";
+
+  list<int> gtIdxs;
+  int idx = idxs.at(0); // path index
+  //  report only one best
+  //  select the longest alt if there are multiple bests
+  //
+  //  1) only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+  // 2) multiple combinations with equal num. of missings
+  else {
+    //  TODO: Adjust this part
+    //  get the path idx with longest seq length
+    uint32 seqLenMax = seqs.at(idx).size();
+    for ( int ii = 1; ii < idxs.size(); ii++ ) {
+      uint32 seqLen  = seqs.at(idxs.at(ii)).length();
+      if ( seqLen > seqLenMax ) {
+        seqLenMax = seqLen;
+        idx = idxs.at(ii);
+      }
+    }
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+}
+
+string
+varMer::loosePolish() {
+
+  //  fprintf(stderr, "[ DEBUG ] :: Loose mode called\n");
+  
+  uint32 numMissing = UINT32_MAX;  //  actual minimum number of missing kmers in the combination with minimum missings
+  vector<int> idxs;
+
+  //  add reference path as default
+  if ( numMs.size() == 0 ) return "";
+
+  uint32 refMissing = numMs.at(0);
+  numMissing = refMissing;
+  
+  //  only add the variant if the numMs are less or equal to the ref path
+  for ( int ii = 0; ii < numMs.size(); ii++ ) {
+
+    // lowest num. missings? add to report
+    if ( numMs.at(ii) < numMissing ) {
+      numMissing = numMs.at(ii);
+      idxs.clear();
+      idxs.push_back(ii);
+
+    } else if ( numMs.at(ii) == numMissing && numMs.at(ii) <= refMissing ) {
+      //  has the same numMissing, less than refMissing
+      idxs.push_back(ii);
+
+    } // else : ignore
+
+  }
+  
+  //  fprintf(stderr, "[ DEBUG ] :: num. combinations picked up: %lu at Mmin %u\n", idxs.size(), numMissing);
+
+  //  ignore if all kmers only increase missing kmers
+  if ( idxs.size() == 0 ) return "";
+
+  int idx = idxs.at(0); // path index
+  //  report all, with warnings for multiple pathes
+  
+  //  1) only one combination has the minimum num. of missings
+  if ( idxs.size() == 1 ) {
+    // return records as HOM
+    return getHomRecord(idx);
+  }
+  // 2) multiple combinations with equal num. of missings
+  else {
+
+    //  only 2 pathes exist, first is the REF path
+    if (idxs.at(0) == 0 && idxs.size() == 2)
+      return getHomRecord(idxs.at(1));
+    
+    //  find the path with most ALT variants
+    int maxVars = 0;
+    int maxIdx  = idx;
+
+    //  for each pathes
+    for ( int ii = 1; ii < idxs.size(); ii++) {
+      int count = 0;
+      idx = idxs.at(ii);
+
+      // check if each gt is ALT
+      for ( uint64 i = 0; i < gtPaths.at(idx).size(); i++) {
+        int altIdx = gtPaths[idx][i];
+        if (altIdx > 0) {
+          count++;
+        }
+      }
+
+      if (count > maxVars) {
+        maxVars = count;
+        maxIdx  = idx;
+      }
+    }
+    
+    fprintf(stderr, "[ WARNING ] :: Multiple (%lu) alternate pathes detected in a path beginning with variant : %s", idxs.size(), posGt->_gts[0]->_record->save().c_str());
+    fprintf(stderr, "[ WARNING ] :: Max. %d ALT variants selected\n", maxVars);
+    return getHomRecord(maxIdx);
+  }
+}
+
+/***
+ * -polish mode. Use k*
+ */
 string
 varMer::bestVariant() {
 

@@ -41,6 +41,9 @@ public:
 
 public:
   string  bestVariant();
+  string  betterVariant(); // Report variants only if it reduces num. missings; regardless of k*; Taking longer pathes for ties
+  string  strictPolish();  // Report variants only if it reduces num. missings; regardless of k*; Taking minimum edits
+  string  loosePolish();   // Remove variants only if it increases num. missings; regardless of k*; Taking maximum edits
   vector<vcfRecord*>  bestFilter();
 
 private:

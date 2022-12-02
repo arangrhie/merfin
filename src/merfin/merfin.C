@@ -116,6 +116,16 @@ main(int32 argc, char **argv) {
     } else if (strcmp(argv[arg], "-filter") == 0) {
       G->reportType = OP_FILTER;
 
+    } else if (strcmp(argv[arg], "-better") == 0) {
+      G->reportType = OP_BETTER;
+
+    } else if (strcmp(argv[arg], "-strict") == 0) {
+      G->reportType = OP_STRICT;
+
+    } else if (strcmp(argv[arg], "-loose") == 0) {
+      fprintf(stderr, "*EXPERIMENTAL* Running in -loose mode\n");
+      G->reportType = OP_LOOSE;
+
     } else if (strcmp(argv[arg], "-polish") == 0) {
       G->reportType = OP_POLISH;
 
@@ -146,15 +156,12 @@ main(int32 argc, char **argv) {
 
   //  Check inputs are present for the various modes.
 
-  if ((G->reportType == OP_HIST)   ||
-      (G->reportType == OP_DUMP)   ||
-      (G->reportType == OP_POLISH) ||
-      (G->reportType == OP_FILTER)) {
+  if (G->reportType != OP_COMPL) {
     if (G->seqName == nullptr)   err.push_back("No input sequences (-sequence) supplied.\n");
     if (G->outName == nullptr)   err.push_back("No output (-output) supplied.\n");
   }
 
-  if  (G->reportType == OP_POLISH || G->reportType == OP_FILTER) {
+  if  (G->reportType == OP_POLISH || G->reportType == OP_FILTER || G->reportType == OP_BETTER || G->reportType == OP_STRICT || G->reportType == OP_LOOSE) {
     if (G->vcfName == nullptr)   err.push_back("No variant call input (-vcf) supplied; mandatory for -filter or -polish.\n");
   }
 
@@ -326,7 +333,7 @@ main(int32 argc, char **argv) {
     ss->setInOrderOutput(true);
   }
 
-  if (G->reportType == OP_POLISH || G->reportType == OP_FILTER) {
+  if (G->reportType != OP_HIST && G->reportType != OP_DUMP && G->reportType != OP_COMPL) {
     fprintf(stderr, "-- Generate variant mers and score them.\n");
     ss = new sweatShop(loadSequence, processVariants, outputVariants);
     ss->setInOrderOutput(false);

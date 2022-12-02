@@ -277,14 +277,25 @@ processVariants(void *G, void *T, void *S) {
 
     //  Generate output VCFs.
 
-    // Experimental: output vcf according to k*
+    // Best: output vcf according to k*
     if (g->reportType == OP_POLISH) {
       //fprintf(t->oVcf->file(), "%s", seqMer->bestVariant().c_str());
       s->result += seqMer->bestVariant();
-    }
+
+    // Better: output vcf for reducing missing kmers only
+    } else if (g->reportType == OP_BETTER) {
+      s->result += seqMer->betterVariant();
+
+    // Strict: output vcf for reducing missing kmers only
+    } else if (g->reportType == OP_STRICT) {
+      s->result += seqMer->strictPolish();
+
+    // Loose: remove variants increasing missing kmers only
+    } else if (g->reportType == OP_LOOSE) {
+      s->result += seqMer->loosePolish();
 
     // Filter vcf and print as it was in the original vcf, conservatively
-    else {
+    } else {
       vector<vcfRecord*> records = seqMer->bestFilter();
 
       for (uint64 i = 0; i < records.size(); i++)
@@ -293,16 +304,10 @@ processVariants(void *G, void *T, void *S) {
     }
 
     //  Cleanup.
-
     delete   seqMer;
     delete[] refTemplate;
   }  //  Over posGTlist.
 }
-
-
-
-
-
 
 void
 outputVariants(void *G, void *S) {
