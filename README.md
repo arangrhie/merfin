@@ -172,6 +172,60 @@ usage: merfin <report-type>        \
      first ALT in heterozygous alleles are usually better supported by avg. |k*|.
 
 
+  -loose (least conservative)
+   Score each variant, or variants within distance k and their combinations without k*.
+   Assumes the reference (-sequence) is partially from the same individual.
+   Remove variants only when the num. missing (error) k-mers increase.
+   Neutral alternative paths that score equally to the reference path are included.
+   If multiple candidate paths tie, path with most ALT calls gets chosen.
+
+   Required: -sequence, -readmers, -peak, -vcf, and -output
+   Optional: -comb <N>    set the max N of combinations of variants to be evaluated (default: 15)
+             -nosplit     without this options combinations larger than N are split
+             -prob <file> use probabilities to adjust multiplicity to copy number (recommended)
+             -debug       output a debug log, into <output>.THREAD_ID.debug.gz
+
+   Output: <output>.polish.vcf : variants chosen.
+     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.
+     first ALT in heterozygous alleles are usually better supported by avg. |k*|.
+
+
+  -strict (most conservative)
+   Score each variant, or variants within distance k and their combinations without k*.
+   Assumes the reference (-sequence) is partially from the same individual.
+   Include variants only when the num. missing (error) k-mers decrease.
+   Neutral alternative paths that score equally to the reference path are excluded.
+   If multiple candidate paths tie, path with least ALT calls gets chosen.
+
+   Required: -sequence, -readmers, -peak, -vcf, and -output
+   Optional: -comb <N>    set the max N of combinations of variants to be evaluated (default: 15)
+             -nosplit     without this options combinations larger than N are split
+             -prob <file> use probabilities to adjust multiplicity to copy number (recommended)
+             -debug       output a debug log, into <output>.THREAD_ID.debug.gz
+
+   Output: <output>.polish.vcf : variants chosen.
+     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.
+     first ALT in heterozygous alleles are usually better supported by avg. |k*|.
+
+
+  -better (legacy, nearly identical to -polish without k*)
+   Score each variant, or variants within distance k and their combinations without k*.
+   Assumes the reference (-sequence) is partially from the same individual.
+   Include variants only when the num. missing (error) k-mers decrease.
+   Neutral alternative paths that score equally to the reference path are excluded.
+   If multiple candidate paths tie, the longest path is chosen.
+
+   Required: -sequence, -readmers, -peak, -vcf, and -output
+   Optional: -comb <N>    set the max N of combinations of variants to be evaluated (default: 15)
+             -nosplit     without this options combinations larger than N are split
+             -prob <file> use probabilities to adjust multiplicity to copy number (recommended)
+             -debug       output a debug log, into <output>.THREAD_ID.debug.gz
+
+   Output: <output>.polish.vcf : variants chosen.
+     use bcftools view -Oz <output>.polish.vcf and bcftools consensus -H 1 -f <seq.fata> to polish.
+     first ALT in heterozygous alleles are usually better supported by avg. |k*|.
+     
+
   -hist
    Generate a 0-centered k* histogram for sequences in <input.fasta>.
      Positive k* values are expected collapsed copies.
