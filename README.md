@@ -27,7 +27,15 @@ Merfin can be used to:
 * assess collapsed or duplicated region of the assembly (`-hist` or `-dump`)
 * QV* for all scaffolds and the assembly (`-hist`)
 * K* completeness (`-completeness`)
-* filter variant calls for polishing (`-polish`: reference is from the same individual)
+* filter variant calls for polishing
+  - Reference is from the same individual: `-polish` (uses `k*`)
+  - Reference is partially from the same individual, or copy-number estimates are unstable. This mode disables `k*`. 
+    - `-better`: Almost identical to `-polish`, with `k*` disabled (deprecated)
+    - `-loose` : Remove variants only when the num. missing (error) k-mers increase. Neutral alternate paths that score equally to the reference path are *included*.
+    - `-strict`: Include variants only when the num. missing (error) k-mers decrease. Neutral alternative paths that score equally to the reference path are *excluded*
+
+### Updates
+* 2022-12-02 `-better`, `-loose`, `-strict` modes used for polishing the T2T-HG002XY assemblies are added
 
 
 ### Determine kmer copy numbers
@@ -93,7 +101,7 @@ bcftools index $merfin_output.polish.vcf.gz
 bcftools consensus $merfin_output.polish.vcf.gz -f assembly.fasta -H 1 > polished_assembly.fasta # -H 1 applies only first allele from GT at each position
 ```
 
-Merfin is still under active development. Feel free to reach out to us if you have any question.
+The `-better`, `-loose`, `-strict` modes were developed for polishing the T2T-HG002XY chromosome, which the reference for aligning reads was created with T2T-CHM13v1.1 autosomes. Our recommendation is to use `-loose` mode in case the variant call set is highly curated. More details can be found in [this preprint](https://doi.org/10.1101/2022.12.01.518724)
 
 
 ### Helper
@@ -235,4 +243,6 @@ With special thanks for their support to integrate `--fitted_hist` option in Gen
 * Michael Schatz
 
 ## Citation
-Formenti, G., Rhie, A., Walenz, B.P. et al. Merfin: improved variant filtering, assembly evaluation and polishing via k-mer validation. Nat Methods (2022). https://doi.org/10.1038/s41592-022-01445-y
+- Formenti, G., Rhie, A., Walenz, B.P. et al. Merfin: improved variant filtering, assembly evaluation and polishing via k-mer validation. Nat Methods (2022). https://doi.org/10.1038/s41592-022-01445-y
+
+- `-better` `-loose` `-strict` mode: Rhie A, Nurk S, Cechova M, Hoyt S, Taylor DJ et al., The complete sequence of a human Y chromosome. bioRxiv (2022) https://doi.org/10.1101/2022.12.01.518724
